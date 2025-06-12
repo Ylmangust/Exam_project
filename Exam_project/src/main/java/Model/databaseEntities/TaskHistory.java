@@ -2,8 +2,9 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package mephi.b22901.exam_project;
+package Model.databaseEntities;
 
+import Model.enums.Status;
 import java.util.Date;
 
 /**
@@ -13,11 +14,11 @@ import java.util.Date;
 public class TaskHistory {
 
     private User user;
-    private TaskStatus oldStatus;
-    private TaskStatus newStatus;
+    private Status oldStatus;
+    private Status newStatus;
     private Date changed_at;
 
-    public TaskHistory(User user, TaskStatus oldStatus, TaskStatus newStatus, Date changed_at) {
+    public TaskHistory(User user, Status oldStatus, Status newStatus, Date changed_at) {
         this.user = user;
         this.oldStatus = oldStatus;
         this.newStatus = newStatus;
@@ -28,11 +29,11 @@ public class TaskHistory {
         return user;
     }
 
-    public TaskStatus getOldStatus() {
+    public Status getOldStatus() {
         return oldStatus;
     }
 
-    public TaskStatus getNewStatus() {
+    public Status getNewStatus() {
         return newStatus;
     }
 

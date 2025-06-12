@@ -2,13 +2,29 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
  */
-package mephi.b22901.exam_project;
+package View;
 
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartPanel;
-import org.jfree.chart.JFreeChart;
-import org.jfree.data.gantt.*;
-import org.jfree.data.time.SimpleTimePeriod;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListModel;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.SwingConstants;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import Controller.Controller;
+import Model.enums.PriorityLevel;
+import Model.databaseEntities.Project;
+import Model.enums.Role;
+import Model.enums.Status;
+import Model.databaseEntities.Task;
+import Model.databaseEntities.User;
 
 /**
  *
@@ -16,11 +32,14 @@ import org.jfree.data.time.SimpleTimePeriod;
  */
 public class GUI extends javax.swing.JFrame {
 
-    /**
-     * Creates new form GUI
-     */
-    public GUI() {
+    private final Controller controller;
+    DefaultListModel<Task> taskListModel = new DefaultListModel<>();
+
+    public GUI(Controller ctrl) {
+        this.controller = ctrl;
         initComponents();
+        startGUI();
+
     }
 
     /**
@@ -60,7 +79,7 @@ public class GUI extends javax.swing.JFrame {
         exportBtnPanel = new javax.swing.JPanel();
         exportBtn = new javax.swing.JButton();
         myTasksDialog = new javax.swing.JDialog();
-        jPanel1 = new javax.swing.JPanel();
+        filterPanel = new javax.swing.JPanel();
         statusFilterCombo = new javax.swing.JComboBox<>();
         statusFilterLbl = new javax.swing.JLabel();
         priorityFilterLbl = new javax.swing.JLabel();
@@ -79,16 +98,27 @@ public class GUI extends javax.swing.JFrame {
         taskDescriptionText = new javax.swing.JTextArea();
         priorityLbl = new javax.swing.JLabel();
         deadlineLbl = new javax.swing.JLabel();
-        jTextField4 = new javax.swing.JTextField();
+        taskDeadline = new javax.swing.JTextField();
         createNewTaskBtn = new javax.swing.JButton();
+        executorCombo = new javax.swing.JComboBox<>();
+        executorLbl = new javax.swing.JLabel();
         priorityCombo = new javax.swing.JComboBox<>();
-        taskExecutorsScroll = new javax.swing.JScrollPane();
-        taskExecutorsTable = new javax.swing.JTable();
+        jLabel1 = new javax.swing.JLabel();
+        projectCombo = new javax.swing.JComboBox<>();
         ganttDiagramDialog = new javax.swing.JDialog();
         diagramPanel = new javax.swing.JPanel();
         executorsStatistics = new javax.swing.JDialog();
         statisticsScroll = new javax.swing.JScrollPane();
         statisticsTable = new javax.swing.JTable();
+        newUserDialog = new javax.swing.JDialog();
+        newUserPanel = new javax.swing.JPanel();
+        fullNameLbl = new javax.swing.JLabel();
+        usernameLbl = new javax.swing.JLabel();
+        roleLbl = new javax.swing.JLabel();
+        roleComboBox = new javax.swing.JComboBox<>();
+        fullNameField = new javax.swing.JTextField();
+        usernameField = new javax.swing.JTextField();
+        createUserBtn = new javax.swing.JButton();
         lblPanel = new javax.swing.JPanel();
         tableNameLbl = new javax.swing.JLabel();
         tableScroll = new javax.swing.JScrollPane();
@@ -98,7 +128,8 @@ public class GUI extends javax.swing.JFrame {
         newProjectItem = new javax.swing.JMenuItem();
         myTasksItem = new javax.swing.JMenuItem();
         reportsItem = new javax.swing.JMenuItem();
-        exitMenuItem = new javax.swing.JMenu();
+        newUserItem = new javax.swing.JMenuItem();
+        exitMenuItem = new javax.swing.JMenuItem();
 
         authorizationDialog.setModal(true);
         authorizationDialog.setResizable(false);
@@ -106,12 +137,6 @@ public class GUI extends javax.swing.JFrame {
         loginLabel.setText("Логин*:");
 
         passwordLabel.setText("Пароль*:");
-
-        passwordField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                passwordFieldActionPerformed(evt);
-            }
-        });
 
         loginBtn.setText("Войти");
         loginBtn.addActionListener(new java.awt.event.ActionListener() {
@@ -183,12 +208,6 @@ public class GUI extends javax.swing.JFrame {
 
         projectNameLbl.setText("Название: ");
 
-        projectNameField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                projectNameFieldActionPerformed(evt);
-            }
-        });
-
         projectDescriptionLbl.setText("Описание: ");
 
         projectDescriptionText.setColumns(20);
@@ -200,6 +219,11 @@ public class GUI extends javax.swing.JFrame {
         endDateLbl.setText("Дата окончания: ");
 
         createProjectBtn.setText("Создать проект");
+        createProjectBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                createProjectBtnActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout projectInfoPanelLayout = new javax.swing.GroupLayout(projectInfoPanel);
         projectInfoPanel.setLayout(projectInfoPanelLayout);
@@ -251,13 +275,10 @@ public class GUI extends javax.swing.JFrame {
 
         executorsTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null},
-                {null, null},
-                {null, null},
-                {null, null}
+
             },
             new String [] {
-                "Выбрать", "Участник"
+                "Выбрать", "Пользователь"
             }
         ) {
             Class[] types = new Class [] {
@@ -354,12 +375,17 @@ public class GUI extends javax.swing.JFrame {
         myTasksDialog.setResizable(false);
 
         statusFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Все", "Новые", "В работе", "Завершенные", "Просроченные" }));
+        statusFilterCombo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                statusFilterComboActionPerformed(evt);
+            }
+        });
 
         statusFilterLbl.setText("Фильтровать по статусам:");
 
-        priorityFilterLbl.setText("Сортировать по приоритету:");
+        priorityFilterLbl.setText("Фильтровать по приоритету:");
 
-        priorityFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "По возрастанию", "По убыванию" }));
+        priorityFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Все", "Высокий", "Средний", "Низкий" }));
         priorityFilterCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 priorityFilterComboActionPerformed(evt);
@@ -369,6 +395,11 @@ public class GUI extends javax.swing.JFrame {
         createdFilterLbl.setText("Сортировать по дате создания:");
 
         createdFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "По возрастанию", "По убыванию" }));
+        createdFilterCombo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                createdFilterComboActionPerformed(evt);
+            }
+        });
 
         createTaskBtn.setText("Создать задачу");
         createTaskBtn.addActionListener(new java.awt.event.ActionListener() {
@@ -377,42 +408,41 @@ public class GUI extends javax.swing.JFrame {
             }
         });
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+        javax.swing.GroupLayout filterPanelLayout = new javax.swing.GroupLayout(filterPanel);
+        filterPanel.setLayout(filterPanelLayout);
+        filterPanelLayout.setHorizontalGroup(
+            filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(filterPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                        .addGroup(jPanel1Layout.createSequentialGroup()
-                            .addComponent(createdFilterLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 185, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGap(18, 18, 18)
-                            .addComponent(createdFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(jPanel1Layout.createSequentialGroup()
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(priorityFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(statusFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(priorityFilterCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(statusFilterCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(filterPanelLayout.createSequentialGroup()
+                        .addComponent(createdFilterLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 185, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(createdFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(filterPanelLayout.createSequentialGroup()
+                        .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(priorityFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, 173, Short.MAX_VALUE)
+                            .addComponent(statusFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(priorityFilterCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(statusFilterCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addComponent(createTaskBtn))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+        filterPanelLayout.setVerticalGroup(
+            filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(filterPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(statusFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(statusFilterLbl))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(priorityFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(priorityFilterLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(priorityFilterLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(priorityFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(createdFilterLbl)
                     .addComponent(createdFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -420,11 +450,7 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        tasksList.setModel(new javax.swing.AbstractListModel<String>() {
-            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
-            public int getSize() { return strings.length; }
-            public String getElementAt(int i) { return strings[i]; }
-        });
+        tasksList.setRequestFocusEnabled(false);
         tasksScroll.setViewportView(tasksList);
 
         javax.swing.GroupLayout myTasksDialogLayout = new javax.swing.GroupLayout(myTasksDialog.getContentPane());
@@ -433,18 +459,16 @@ public class GUI extends javax.swing.JFrame {
             myTasksDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(myTasksDialogLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addContainerGap())
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, myTasksDialogLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(tasksScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 328, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(14, 14, 14))
+                .addGroup(myTasksDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(tasksScroll)
+                    .addComponent(filterPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         myTasksDialogLayout.setVerticalGroup(
             myTasksDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(myTasksDialogLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(filterPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(tasksScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 271, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(15, Short.MAX_VALUE))
@@ -454,12 +478,6 @@ public class GUI extends javax.swing.JFrame {
         newTaskDialog.setResizable(false);
 
         taskNameLbl.setText("Название: ");
-
-        taskNameField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                taskNameFieldActionPerformed(evt);
-            }
-        });
 
         taskDescriptionLbl.setText("Описание: ");
 
@@ -472,91 +490,85 @@ public class GUI extends javax.swing.JFrame {
         deadlineLbl.setText("Дедлайн:");
 
         createNewTaskBtn.setText("Cоздать задачу");
+        createNewTaskBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                createNewTaskBtnActionPerformed(evt);
+            }
+        });
 
-        priorityCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Высокий", "Средний ", "Низкий", " " }));
+        executorLbl.setText("Исполнитель:");
+
+        priorityCombo.setModel(new DefaultComboBoxModel<>(PriorityLevel.values())
+        );
+
+        jLabel1.setText("Проект:");
+
+        projectCombo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                projectComboActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout taskInfoPanelLayout = new javax.swing.GroupLayout(taskInfoPanel);
         taskInfoPanel.setLayout(taskInfoPanelLayout);
         taskInfoPanelLayout.setHorizontalGroup(
             taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(taskInfoPanelLayout.createSequentialGroup()
-                .addContainerGap(15, Short.MAX_VALUE)
-                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, taskInfoPanelLayout.createSequentialGroup()
-                        .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(taskDescriptionLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(taskNameLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(deadlineLbl, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(priorityLbl, javax.swing.GroupLayout.Alignment.LEADING)))
-                        .addGap(18, 18, 18)
-                        .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(taskdescriptionScroll)
-                            .addComponent(taskNameField, javax.swing.GroupLayout.PREFERRED_SIZE, 234, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(jTextField4, javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(priorityCombo, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                        .addContainerGap())
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, taskInfoPanelLayout.createSequentialGroup()
-                        .addComponent(createNewTaskBtn)
-                        .addGap(110, 110, 110))))
+                .addGap(33, 33, 33)
+                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(deadlineLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(priorityLbl, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(taskDescriptionLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(taskNameLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(executorLbl, javax.swing.GroupLayout.DEFAULT_SIZE, 85, Short.MAX_VALUE))
+                .addGap(24, 24, 24)
+                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(taskdescriptionScroll)
+                    .addComponent(taskNameField)
+                    .addComponent(taskDeadline)
+                    .addComponent(priorityCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(executorCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(taskInfoPanelLayout.createSequentialGroup()
+                        .addGap(9, 9, 9)
+                        .addComponent(createNewTaskBtn))
+                    .addComponent(projectCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(42, Short.MAX_VALUE))
         );
         taskInfoPanelLayout.setVerticalGroup(
             taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(taskInfoPanelLayout.createSequentialGroup()
-                .addGap(19, 19, 19)
+                .addGap(25, 25, 25)
+                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel1)
+                    .addComponent(projectCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(taskNameLbl)
                     .addComponent(taskNameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(36, 36, 36)
+                .addGap(26, 26, 26)
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(taskdescriptionScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(taskDescriptionLbl))
-                .addGap(39, 39, 39)
-                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(priorityLbl)
-                    .addComponent(priorityCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(34, 34, 34)
-                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(deadlineLbl)
-                    .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
+                .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(taskInfoPanelLayout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 32, Short.MAX_VALUE)
+                        .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(executorLbl)
+                            .addComponent(executorCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(32, 32, 32)
+                        .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(priorityLbl)
+                            .addComponent(priorityCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(37, 37, 37)
+                        .addComponent(deadlineLbl))
+                    .addGroup(taskInfoPanelLayout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(taskDeadline, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(33, 33, 33)
                 .addComponent(createNewTaskBtn)
                 .addContainerGap())
         );
-
-        taskExecutorsTable.setModel(new javax.swing.table.DefaultTableModel(
-            new Object [][] {
-                {null, null},
-                {null, null},
-                {null, null},
-                {null, null}
-            },
-            new String [] {
-                "Выбрать", "Участник"
-            }
-        ) {
-            Class[] types = new Class [] {
-                java.lang.Boolean.class, java.lang.Object.class
-            };
-            boolean[] canEdit = new boolean [] {
-                true, false
-            };
-
-            public Class getColumnClass(int columnIndex) {
-                return types [columnIndex];
-            }
-
-            public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return canEdit [columnIndex];
-            }
-        });
-        taskExecutorsScroll.setViewportView(taskExecutorsTable);
-        if (taskExecutorsTable.getColumnModel().getColumnCount() > 0) {
-            taskExecutorsTable.getColumnModel().getColumn(0).setResizable(false);
-            taskExecutorsTable.getColumnModel().getColumn(0).setPreferredWidth(20);
-            taskExecutorsTable.getColumnModel().getColumn(1).setResizable(false);
-        }
 
         javax.swing.GroupLayout newTaskDialogLayout = new javax.swing.GroupLayout(newTaskDialog.getContentPane());
         newTaskDialog.getContentPane().setLayout(newTaskDialogLayout);
@@ -565,18 +577,14 @@ public class GUI extends javax.swing.JFrame {
             .addGroup(newTaskDialogLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(taskInfoPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 34, Short.MAX_VALUE)
-                .addComponent(taskExecutorsScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 348, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(24, 24, 24))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         newTaskDialogLayout.setVerticalGroup(
             newTaskDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(newTaskDialogLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(newTaskDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(taskExecutorsScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 346, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(taskInfoPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 20, Short.MAX_VALUE))
+                .addComponent(taskInfoPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout diagramPanelLayout = new javax.swing.GroupLayout(diagramPanel);
@@ -639,6 +647,73 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap())
         );
 
+        newUserDialog.setTitle("Добавить пользователя");
+
+        fullNameLbl.setText("Полное имя:");
+
+        usernameLbl.setText("Имя пользователя:");
+
+        roleLbl.setText("Роль:");
+
+        roleComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "администратор", "менеджер", "исполнитель" }));
+
+        createUserBtn.setText("Добавить");
+
+        javax.swing.GroupLayout newUserPanelLayout = new javax.swing.GroupLayout(newUserPanel);
+        newUserPanel.setLayout(newUserPanelLayout);
+        newUserPanelLayout.setHorizontalGroup(
+            newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(newUserPanelLayout.createSequentialGroup()
+                .addGap(31, 31, 31)
+                .addGroup(newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(newUserPanelLayout.createSequentialGroup()
+                        .addComponent(usernameLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 114, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(usernameField))
+                    .addGroup(newUserPanelLayout.createSequentialGroup()
+                        .addGroup(newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(fullNameLbl)
+                            .addComponent(roleLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(55, 55, 55)
+                        .addGroup(newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(roleComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(fullNameField, javax.swing.GroupLayout.PREFERRED_SIZE, 208, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(newUserPanelLayout.createSequentialGroup()
+                                .addGap(11, 11, 11)
+                                .addComponent(createUserBtn)))))
+                .addGap(0, 35, Short.MAX_VALUE))
+        );
+        newUserPanelLayout.setVerticalGroup(
+            newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(newUserPanelLayout.createSequentialGroup()
+                .addGap(30, 30, 30)
+                .addGroup(newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(fullNameLbl)
+                    .addComponent(fullNameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(22, 22, 22)
+                .addGroup(newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(usernameLbl)
+                    .addComponent(usernameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
+                .addGroup(newUserPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(roleLbl)
+                    .addComponent(roleComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 36, Short.MAX_VALUE)
+                .addComponent(createUserBtn)
+                .addGap(17, 17, 17))
+        );
+
+        javax.swing.GroupLayout newUserDialogLayout = new javax.swing.GroupLayout(newUserDialog.getContentPane());
+        newUserDialog.getContentPane().setLayout(newUserDialogLayout);
+        newUserDialogLayout.setHorizontalGroup(
+            newUserDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(newUserPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        );
+        newUserDialogLayout.setVerticalGroup(
+            newUserDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(newUserPanel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        );
+
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
         tableNameLbl.setText("Активные проекты");
@@ -648,30 +723,20 @@ public class GUI extends javax.swing.JFrame {
         lblPanelLayout.setHorizontalGroup(
             lblPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(lblPanelLayout.createSequentialGroup()
-                .addGap(182, 182, 182)
+                .addGap(60, 60, 60)
                 .addComponent(tableNameLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 115, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         lblPanelLayout.setVerticalGroup(
             lblPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, lblPanelLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(tableNameLbl)
-                .addContainerGap())
+                .addGap(0, 6, Short.MAX_VALUE)
+                .addComponent(tableNameLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         activeProjectsTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null}
+
             },
             new String [] {
                 "Название", "Статус", "Дедлайн"
@@ -697,18 +762,41 @@ public class GUI extends javax.swing.JFrame {
         menuOptions.setText("Меню");
 
         newProjectItem.setText("Новый проект");
+        newProjectItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                newProjectItemActionPerformed(evt);
+            }
+        });
         menuOptions.add(newProjectItem);
 
         myTasksItem.setText("Мои задачи");
+        myTasksItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                myTasksItemActionPerformed(evt);
+            }
+        });
         menuOptions.add(myTasksItem);
 
         reportsItem.setText("Отчеты");
         menuOptions.add(reportsItem);
 
-        mainMenuBar.add(menuOptions);
+        newUserItem.setText("Добавить нового пользователя");
+        newUserItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                newUserItemActionPerformed(evt);
+            }
+        });
+        menuOptions.add(newUserItem);
 
         exitMenuItem.setText("Выйти");
-        mainMenuBar.add(exitMenuItem);
+        exitMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                exitMenuItemActionPerformed(evt);
+            }
+        });
+        menuOptions.add(exitMenuItem);
+
+        mainMenuBar.add(menuOptions);
 
         setJMenuBar(mainMenuBar);
 
@@ -716,7 +804,9 @@ public class GUI extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(lblPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(121, 121, 121)
+                .addComponent(lblPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(tableScroll, javax.swing.GroupLayout.DEFAULT_SIZE, 481, Short.MAX_VALUE)
@@ -725,78 +815,271 @@ public class GUI extends javax.swing.JFrame {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(lblPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(tableScroll, javax.swing.GroupLayout.DEFAULT_SIZE, 293, Short.MAX_VALUE)
+                .addComponent(lblPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(5, 5, 5)
+                .addComponent(tableScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 287, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void passwordFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_passwordFieldActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_passwordFieldActionPerformed
-
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
-        // TODO add your handling code here:
+        if (!loginField.getText().trim().isEmpty() && passwordField.getPassword().length != 0) {
+            User user = controller.authorization(loginField.getText(), String.valueOf(passwordField.getPassword()));
+            if (user != null) {
+                authorizationDialog.dispose();
+                clearAuthorizationFields();
+                setUpUserAccess(user.getRole());
+                updateProjectsTable();
+                makeVisible(this);
+            } else {
+                JOptionPane.showMessageDialog(null, "Пользователь не найден или неправильно введен логин/пароль!", null, JOptionPane.ERROR_MESSAGE);
+                clearAuthorizationFields();
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Необходимо заполнить оба поля!", null, JOptionPane.WARNING_MESSAGE);
+        }
     }//GEN-LAST:event_loginBtnActionPerformed
 
-    private void projectNameFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_projectNameFieldActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_projectNameFieldActionPerformed
-
-    private void priorityFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_priorityFilterComboActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_priorityFilterComboActionPerformed
-
     private void createTaskBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createTaskBtnActionPerformed
-        // TODO add your handling code here:
+        List<Project> projects = controller.getProjectsForCurrentUser();
+        projectCombo.removeAllItems();
+        for (Project project : projects) {
+            projectCombo.addItem(project);
+        }
+        makeVisible(newTaskDialog);
     }//GEN-LAST:event_createTaskBtnActionPerformed
 
-    private void taskNameFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_taskNameFieldActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_taskNameFieldActionPerformed
+    private void newProjectItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newProjectItemActionPerformed
+        updateExecutorsAvaliableTable();
+        makeVisible(newProjectDialog);
+    }//GEN-LAST:event_newProjectItemActionPerformed
 
-    private void draawGanttDiagramm(){
-        
-    }
-    
-    
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
+    private void myTasksItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_myTasksItemActionPerformed
+        List<Task> tasks = controller.getTasksForCurrentUser();
+        taskListModel.clear();
+        for (Task t : tasks) {
+            taskListModel.addElement(t);
+        }
+        tasksList.setModel(taskListModel);
+
+        makeVisible(myTasksDialog);
+    }//GEN-LAST:event_myTasksItemActionPerformed
+
+    private void newUserItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newUserItemActionPerformed
+        makeVisible(newUserDialog);
+    }//GEN-LAST:event_newUserItemActionPerformed
+
+    private void exitMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exitMenuItemActionPerformed
+        this.dispose();
+        makeVisible(authorizationDialog);
+    }//GEN-LAST:event_exitMenuItemActionPerformed
+
+    private void createNewTaskBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createNewTaskBtnActionPerformed
+        if (!taskNameField.getText().trim().isEmpty() && !taskDeadline.getText().trim().isEmpty() && !taskDescriptionText.getText().trim().isEmpty()) {
+            Project selected = (Project) projectCombo.getSelectedItem();
+            List<Task> tasks = selected.getTasks();
+            String newTaskName = taskNameField.getText().trim();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate newTaskDeadline = LocalDate.parse(taskDeadline.getText().trim(), formatter);
+            for (Task task : tasks) {
+                if (task.getDeadline().equals(newTaskDeadline)) {
+                    JOptionPane.showMessageDialog(this, "Дедлайн задачи пересекается с уже существующими!", null, JOptionPane.WARNING_MESSAGE);
+                    taskDeadline.setText("");
+                }
+                if (task.getName().equals(newTaskName)) {
+                    JOptionPane.showMessageDialog(this, "Задача с таким именем уже существует в данном проекте!", null, JOptionPane.WARNING_MESSAGE);
+                    taskNameField.setText("");
                 }
             }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } else {
+            JOptionPane.showMessageDialog(this, "Необходимо заполнить все поля!", null, JOptionPane.WARNING_MESSAGE);
         }
-        //</editor-fold>
 
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new GUI().setVisible(true);
+
+    }//GEN-LAST:event_createNewTaskBtnActionPerformed
+
+    private void statusFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_statusFilterComboActionPerformed
+        String selected = (String) statusFilterCombo.getSelectedItem();
+        List<Task> tasks = controller.getTasksForCurrentUser();
+        taskListModel.clear();
+        for (Task task : tasks) {
+            if ("Все".equals(selected)) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("Новые") && task.getStatus() == Status.NEW) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("В работе") && task.getStatus() == Status.IN_PROGRESS) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("Завершенные") && task.getStatus() == Status.DONE) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("Просроченные") && task.getStatus() == Status.OVERDUE) {
+                taskListModel.addElement(task);
+            }
+        }
+    }//GEN-LAST:event_statusFilterComboActionPerformed
+
+    private void priorityFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_priorityFilterComboActionPerformed
+        String selected = (String) priorityFilterCombo.getSelectedItem();
+        List<Task> tasks = controller.getTasksForCurrentUser();
+        taskListModel.clear();
+        for (Task task : tasks) {
+            if ("Все".equals(selected)) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("Высокий") && task.getPriority() == PriorityLevel.HIGH) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("Средний") && task.getPriority() == PriorityLevel.MEDIUM) {
+                taskListModel.addElement(task);
+            } else if (selected.equals("Низкий") && task.getPriority() == PriorityLevel.LOW) {
+                taskListModel.addElement(task);
+            }
+        }
+    }//GEN-LAST:event_priorityFilterComboActionPerformed
+
+    private void createdFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createdFilterComboActionPerformed
+        String selected = (String) createdFilterCombo.getSelectedItem();
+        List<Task> tasks = controller.getTasksForCurrentUser();
+        if ("По возрастанию".equals(selected)) {
+            tasks.sort(Comparator.comparing(task -> task.getCreatedAt()));
+        } else if ("По убыванию".equals(selected)) {
+            tasks.sort(Comparator.comparing((Task task) -> task.getCreatedAt()).reversed());
+        }
+        taskListModel.clear();
+        for (Task task : tasks) {
+            taskListModel.addElement(task);
+        }
+    }//GEN-LAST:event_createdFilterComboActionPerformed
+
+    private void projectComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_projectComboActionPerformed
+        Project selected = (Project) projectCombo.getSelectedItem();
+        executorCombo.removeAllItems();
+        if (selected != null) {
+            List<User> executors = selected.getExecutors();
+            for (User user : executors) {
+                executorCombo.addItem(user);
+            }
+        }
+
+
+    }//GEN-LAST:event_projectComboActionPerformed
+
+    private void createProjectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createProjectBtnActionPerformed
+        DefaultTableModel tableModel = (DefaultTableModel) executorsTable.getModel();
+        List<Integer> executors = new ArrayList<>();
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            Boolean checked = (Boolean) tableModel.getValueAt(i, 0);
+            if (Boolean.TRUE.equals(checked)) {
+                Integer id = (Integer) tableModel.getValueAt(i, 1);
+                executors.add(id);
+            }
+        }
+        if (!executors.isEmpty() && !projectNameField.getText().trim().isEmpty() && !projectDescriptionText.getText().trim().isEmpty()) { //разобраться с маленькими календарями для выбора дат начала/окончания
+            List<String> existingProjects = controller.getProjectsNames();
+            String newProjectName = projectNameField.getText().trim();
+            for (String name : existingProjects) {
+                if (name.equals(newProjectName)) {
+                    JOptionPane.showMessageDialog(null, "Проект с таким именем уже существует!", null, JOptionPane.ERROR_MESSAGE);
+                    projectNameField.setText("");
+                }
+            }
+        //метод создания нового проекта: вызываем метод из контроллера, тот вызывает метод из оператораБД. записываем проект в БД и заново считываем
+        } else {
+            JOptionPane.showMessageDialog(null, "Проверьте заполненность всех полей!", null, JOptionPane.WARNING_MESSAGE);
+        }
+    }//GEN-LAST:event_createProjectBtnActionPerformed
+
+    private void updateProjectsTable() {
+        List<Project> projects = controller.getProjectsForCurrentUser();
+        Object[][] data = new Object[projects.size()][3];
+        for (int i = 0; i < projects.size(); i++) {
+            Project p = projects.get(i);
+            data[i][0] = p.getProjectName();
+            data[i][1] = p.getStatus();
+            data[i][2] = p.getEndDate();
+        }
+        String[] titles = {"Название", "Статус", "Дедлайн"};
+        activeProjectsTable.setModel(new DefaultTableModel(data, titles) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
             }
         });
+
+        ColorRenderer renderer = new ColorRenderer();
+        for (int i = 0; i < activeProjectsTable.getColumnCount(); i++) {
+            activeProjectsTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
+            renderer.setHorizontalAlignment(SwingConstants.CENTER);
+        }
     }
+
+    private void updateExecutorsAvaliableTable() {
+        List<User> users = controller.getAllUsers();
+        Object[][] data = new Object[users.size()][3];
+        for (int i = 0; i < users.size(); i++) {
+            User user = users.get(i);
+            data[i][0] = Boolean.FALSE;
+            data[i][1] = user.getFullName();
+
+        }
+        String[] titles = {"Выбрать", "Пользователь"};
+        executorsTable.setModel(new DefaultTableModel(data, titles) {
+            @Override
+            public Class<?> getColumnClass(int column) {
+                switch (column) {
+                    case 0:
+                        return Boolean.class;
+                    case 1:
+                        return String.class;
+                }
+                return null;
+            }
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 0;
+            }
+        });
+
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        executorsTable.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
+
+    }
+
+    private void setUpUserAccess(Role role) {
+        newProjectItem.setEnabled(role != Role.EXECUTOR);
+        reportsItem.setEnabled(role != Role.EXECUTOR);
+        newUserItem.setEnabled(role == Role.ADMIN);
+        createTaskBtn.setEnabled(role != Role.EXECUTOR);
+    }
+
+    private void clearAuthorizationFields() {
+        loginField.setText("");
+        passwordField.setText("");
+    }
+
+    private void makeVisible(JDialog dialog) {
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
+    }
+
+    private void makeVisible(JFrame frame) {
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+
+    private void drawGanttDiagramm() {
+//
+    }
+
+    private void startGUI() {
+        authorizationDialog.pack();
+        authorizationDialog.setLocationRelativeTo(null);
+        authorizationDialog.setVisible(true);
+
+    }
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTable activeProjectsTable;
@@ -805,23 +1088,28 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JButton createNewTaskBtn;
     private javax.swing.JButton createProjectBtn;
     private javax.swing.JButton createTaskBtn;
+    private javax.swing.JButton createUserBtn;
     private javax.swing.JComboBox<String> createdFilterCombo;
     private javax.swing.JLabel createdFilterLbl;
     private javax.swing.JLabel deadlineLbl;
     private javax.swing.JScrollPane descriptionScroll;
     private javax.swing.JPanel diagramPanel;
     private javax.swing.JLabel endDateLbl;
+    private javax.swing.JComboBox<User> executorCombo;
+    private javax.swing.JLabel executorLbl;
     private javax.swing.JScrollPane executorsScroll;
     private javax.swing.JDialog executorsStatistics;
     private javax.swing.JTable executorsTable;
-    private javax.swing.JMenu exitMenuItem;
+    private javax.swing.JMenuItem exitMenuItem;
     private javax.swing.JButton exportBtn;
     private javax.swing.JPanel exportBtnPanel;
+    private javax.swing.JPanel filterPanel;
+    private javax.swing.JTextField fullNameField;
+    private javax.swing.JLabel fullNameLbl;
     private javax.swing.JDialog ganttDiagramDialog;
-    private javax.swing.JPanel jPanel1;
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JTextField jTextField2;
     private javax.swing.JTextField jTextField3;
-    private javax.swing.JTextField jTextField4;
     private javax.swing.JPanel lblPanel;
     private javax.swing.JButton loginBtn;
     private javax.swing.JTextField loginField;
@@ -834,12 +1122,17 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JDialog newProjectDialog;
     private javax.swing.JMenuItem newProjectItem;
     private javax.swing.JDialog newTaskDialog;
+    private javax.swing.JDialog newUserDialog;
+    private javax.swing.JMenuItem newUserItem;
+    private javax.swing.JPanel newUserPanel;
     private javax.swing.JPasswordField passwordField;
     private javax.swing.JLabel passwordLabel;
-    private javax.swing.JComboBox<String> priorityCombo;
+    private javax.swing.JComboBox<PriorityLevel> priorityCombo;
     private javax.swing.JComboBox<String> priorityFilterCombo;
     private javax.swing.JLabel priorityFilterLbl;
     private javax.swing.JLabel priorityLbl;
+    private javax.swing.JComboBox<Project
+    > projectCombo;
     private javax.swing.JLabel projectDescriptionLbl;
     private javax.swing.JTextArea projectDescriptionText;
     private javax.swing.JPanel projectInfoPanel;
@@ -849,6 +1142,8 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JTree projectsTree;
     private javax.swing.JDialog reportsDialog;
     private javax.swing.JMenuItem reportsItem;
+    private javax.swing.JComboBox<String> roleComboBox;
+    private javax.swing.JLabel roleLbl;
     private javax.swing.JLabel startDateLbl;
     private javax.swing.JScrollPane statisticsScroll;
     private javax.swing.JTable statisticsTable;
@@ -856,15 +1151,16 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JLabel statusFilterLbl;
     private javax.swing.JLabel tableNameLbl;
     private javax.swing.JScrollPane tableScroll;
+    private javax.swing.JTextField taskDeadline;
     private javax.swing.JLabel taskDescriptionLbl;
     private javax.swing.JTextArea taskDescriptionText;
-    private javax.swing.JScrollPane taskExecutorsScroll;
-    private javax.swing.JTable taskExecutorsTable;
     private javax.swing.JPanel taskInfoPanel;
     private javax.swing.JTextField taskNameField;
     private javax.swing.JLabel taskNameLbl;
     private javax.swing.JScrollPane taskdescriptionScroll;
-    private javax.swing.JList<String> tasksList;
+    private javax.swing.JList<Task> tasksList;
     private javax.swing.JScrollPane tasksScroll;
+    private javax.swing.JTextField usernameField;
+    private javax.swing.JLabel usernameLbl;
     // End of variables declaration//GEN-END:variables
 }

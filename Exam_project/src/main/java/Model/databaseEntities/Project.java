@@ -2,8 +2,10 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package mephi.b22901.exam_project;
+package Model.databaseEntities;
 
+import Model.enums.Status;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -13,22 +15,36 @@ import java.util.List;
  */
 public class Project {
 
+    private int projectID;
     private String projectName;
     private String description;
     private User creator;
     private List<User> executors;
     private List<Task> tasks;
-    private Date startDate;
-    private Date endDate;
+    private Status status;
+    private LocalDate startDate;
+    private LocalDate endDate;
 
-    public Project(String projectName, String description, User creator, List<User> executors, List<Task> tasks, Date startDate, Date endDate) {
+    public Project(int id, String projectName, String description, User creator, Status status, LocalDate startDate, LocalDate endDate) {
+        this.projectID = id;
         this.projectName = projectName;
         this.description = description;
         this.creator = creator;
-        this.executors = executors;
-        this.tasks = tasks;
+        this.status = status;
         this.startDate = startDate;
         this.endDate = endDate;
+    }
+
+    public void setExecutors(List<User> executors) {
+        this.executors = executors;
+    }
+
+    public void setTasks(List<Task> tasks) {
+        this.tasks = tasks;
+    }
+
+    public int getProjectID() {
+        return projectID;
     }
 
     public String getProjectName() {
@@ -47,13 +63,23 @@ public class Project {
         return executors;
     }
 
-    public Date getStartDate() {
+    public LocalDate getStartDate() {
         return startDate;
     }
 
-    public Date getEndDate() {
+    public LocalDate getEndDate() {
         return endDate;
     }
+
+    public List<Task> getTasks() {
+        return tasks;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+    
+    
 
     @Override
     public String toString() {

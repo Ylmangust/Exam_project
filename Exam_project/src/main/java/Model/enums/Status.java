@@ -2,13 +2,13 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Enum.java to edit this template
  */
-package mephi.b22901.exam_project;
+package Model.enums;
 
 /**
  *
  * @author Регина
  */
-public enum TaskStatus {
+public enum Status {
     NEW("Новый"),
     IN_PROGRESS("В процессе"),
     DONE("Завершен"),
@@ -16,11 +16,16 @@ public enum TaskStatus {
     
     private String text;
     
-    private TaskStatus(String text){
+    private Status(String text){
         this.text = text;
     }
     
     public String getStatus(){
         return text;
+    }
+    
+    @Override 
+    public String toString(){
+        return this.text;
     }
 }

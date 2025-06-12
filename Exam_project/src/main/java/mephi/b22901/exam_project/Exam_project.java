@@ -4,6 +4,8 @@
 
 package mephi.b22901.exam_project;
 
+import Controller.Controller;
+
 /**
  *
  * @author Регина
@@ -11,7 +13,7 @@ package mephi.b22901.exam_project;
 public class Exam_project {
 
     public static void main(String[] args) {
-        System.out.println("Hello World!");
+        Controller ctrl = new Controller();
         
         
         

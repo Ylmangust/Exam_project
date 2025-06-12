@@ -2,7 +2,9 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package mephi.b22901.exam_project;
+package Model.databaseEntities;
+
+import Model.enums.Role;
 
 /**
  *
@@ -10,13 +12,15 @@ package mephi.b22901.exam_project;
  */
 public class User {
 
+    private int userId;
     private String username;
     private String password;
     private String fullName;
-    private String role;
+    private Role role;
     private int rate;
 
-    public User(String userName, String pass, String fullName, String role, int rate) {
+    public User(int id, String userName, String pass, String fullName, Role role, int rate) {     
+        this.userId = id;
         this.username = userName;
         this.password = pass;
         this.fullName = fullName;
@@ -36,7 +40,7 @@ public class User {
         return fullName;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 
@@ -47,6 +51,12 @@ public class User {
     public void setRate(int rate){
         this.rate = rate;
     }
+
+    public int getUserId() {
+        return userId;
+    }
+    
+    
     
     @Override
     public String toString(){
