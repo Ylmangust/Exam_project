@@ -15,15 +15,17 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import static Model.enums.Role.ADMIN;
 import static Model.enums.Role.EXECUTOR;
 import static Model.enums.Role.MANAGER;
+import java.security.SecureRandom;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.util.Comparator;
 
 /**
  *
@@ -90,6 +92,9 @@ public class DatabaseManager {
     }
 
     private void readUsers(Connection connection) {
+        if (!users.isEmpty()) {
+            users.clear();
+        }
         String query = "SELECT * FROM users";
         try (PreparedStatement statement = connection.prepareStatement(query); ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
@@ -108,8 +113,9 @@ public class DatabaseManager {
     }
 
     private void getProjectsForCurrentUser(Connection connection) {
-        if (!projects.isEmpty()) {
+        if (!projects.isEmpty() || !userTasks.isEmpty()) {
             projects.clear();
+            userTasks.clear();
         }
         String projectsQuery = buildQueryByRole();
         try (PreparedStatement projectsStmt = connection.prepareStatement(projectsQuery)) {
@@ -139,6 +145,7 @@ public class DatabaseManager {
                 project.setTasks(getProjectTasks(project.getProjectID(), project, connection));
                 projects.add(project);
             }
+            projects.sort(Comparator.comparing((Project project) -> project.getEndDate()));
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
@@ -284,6 +291,133 @@ public class DatabaseManager {
             default ->
                 throw new IllegalArgumentException("Unknown role: " + currentUser.getRole());
         }
+    }
+
+    public int createProject(String projectName, String description, LocalDate startDate, LocalDate endDate, List<User> executors) {
+        String insertProject = "INSERT INTO projects (project_name, description, created_by, start_date, end_date) "
+                + "VALUES (?, ?, ?, ?, ?) RETURNING project_id";
+        String insertExecutors = "INSERT INTO project_executors (project_id, user_id) VALUES (?, ?)";
+
+        PreparedStatement projectStmt = null;
+        PreparedStatement executorsStmt = null;
+        ResultSet rs = null;
+        int projectId = -1;
+        try {
+            connection.setAutoCommit(false); // Начинаем транзакцию
+
+            projectStmt = connection.prepareStatement(insertProject);
+            projectStmt.setString(1, projectName);
+            projectStmt.setString(2, description);
+            projectStmt.setLong(3, currentUser.getUserId());
+            projectStmt.setDate(4, java.sql.Date.valueOf(startDate));
+            projectStmt.setDate(5, java.sql.Date.valueOf(endDate));
+
+            rs = projectStmt.executeQuery(); // есть RETURNING
+            if (rs.next()) {
+                projectId = rs.getInt(1);
+            } else {
+                throw new SQLException("Не удалось получить project_id после вставки проекта.");
+            }
+
+            // 2. Вставляем исполнителей
+            executorsStmt = connection.prepareStatement(insertExecutors);
+            for (User user : executors) {
+                executorsStmt.setInt(1, projectId);
+                executorsStmt.setInt(2, user.getUserId());
+                executorsStmt.addBatch(); //добавили в пакет запросов
+            }
+            executorsStmt.executeBatch(); //выполнили весь пакет целиком
+
+            connection.commit();
+            getProjectsForCurrentUser(connection);
+            return projectId;
+        } catch (SQLException ex) {
+            if (connection != null) try {
+                connection.rollback();
+            } catch (SQLException e2) {
+            }
+            // 23505 — нарушение уникальности project_name
+            if ("23505".equals(ex.getSQLState())) {
+                return -1;
+            } else {
+                ex.printStackTrace();
+            }
+        } finally {
+            if (rs != null) try {
+                rs.close();
+            } catch (SQLException e) {
+            }
+            if (projectStmt != null) try {
+                projectStmt.close();
+            } catch (SQLException e) {
+            }
+            if (executorsStmt != null) try {
+                executorsStmt.close();
+            } catch (SQLException e) {
+            }
+            if (connection != null) try {
+                connection.setAutoCommit(true);
+            } catch (SQLException e) {
+            }
+        }
+        return projectId;
+    }
+
+    public boolean createTask(String name, String description, Project project, User executor, PriorityLevel priority, LocalDate deadline) {
+        String insertTask = "INSERT INTO tasks (task_title, task_description, project_id, creator_id, executor_id, priority, deadline) VALUES (?,?,?,?,?,?,?)";
+        boolean result = false;
+        try (PreparedStatement taskStmt = connection.prepareStatement(insertTask)) {
+            taskStmt.setString(1, name);
+            taskStmt.setString(2, description);
+            taskStmt.setInt(3, project.getProjectID());
+            taskStmt.setInt(4, currentUser.getUserId());
+            taskStmt.setInt(5, executor.getUserId());
+            taskStmt.setObject(6, priority.name(), java.sql.Types.OTHER);
+            taskStmt.setDate(7, java.sql.Date.valueOf(deadline));
+            taskStmt.executeUpdate();
+            result = true;
+            getProjectsForCurrentUser(connection);
+        } catch (SQLException ex) {
+            if ("23505".equals(ex.getSQLState())) {
+                return false;
+            } else {
+                ex.printStackTrace();
+            }
+        }
+        return result;
+    }
+
+    public boolean createUser(String fullname, String username, Role role) {
+        String insertUser = "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)";
+        String newPass = generatePassword();
+        boolean result = false;
+        try (PreparedStatement statement = connection.prepareStatement(insertUser)) {
+            statement.setString(1, username);
+            statement.setString(2, newPass);
+            statement.setString(3, fullname);
+            statement.setObject(4, role.name(), java.sql.Types.OTHER);
+            statement.executeUpdate();
+            result = true;
+            readUsers(connection);
+        } catch (SQLException ex) {
+            if ("23505".equals(ex.getSQLState())) {
+                return false;
+            } else {
+                ex.printStackTrace();
+            }
+        }
+        return result;
+    }
+
+    private String generatePassword() {
+        SecureRandom random = new SecureRandom();
+        String simbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#*()_+-?";
+        StringBuilder newPass = new StringBuilder(8);
+        for (int i = 0; i < 8; i++) {
+            int index = random.nextInt(simbols.length());
+            newPass.append(simbols.charAt(index));
+        }
+        return newPass.toString();
     }
 
     public User getCurrentUser() {

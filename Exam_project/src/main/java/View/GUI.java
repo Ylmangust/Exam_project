@@ -25,6 +25,9 @@ import Model.enums.Role;
 import Model.enums.Status;
 import Model.databaseEntities.Task;
 import Model.databaseEntities.User;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import javax.swing.JTextField;
 
 /**
  *
@@ -34,6 +37,7 @@ public class GUI extends javax.swing.JFrame {
 
     private final Controller controller;
     DefaultListModel<Task> taskListModel = new DefaultListModel<>();
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public GUI(Controller ctrl) {
         this.controller = ctrl;
@@ -68,8 +72,8 @@ public class GUI extends javax.swing.JFrame {
         projectDescriptionText = new javax.swing.JTextArea();
         startDateLbl = new javax.swing.JLabel();
         endDateLbl = new javax.swing.JLabel();
-        jTextField2 = new javax.swing.JTextField();
-        jTextField3 = new javax.swing.JTextField();
+        endProjectDate = new javax.swing.JTextField();
+        startProjectDate = new javax.swing.JTextField();
         createProjectBtn = new javax.swing.JButton();
         executorsScroll = new javax.swing.JScrollPane();
         executorsTable = new javax.swing.JTable();
@@ -103,7 +107,7 @@ public class GUI extends javax.swing.JFrame {
         executorCombo = new javax.swing.JComboBox<>();
         executorLbl = new javax.swing.JLabel();
         priorityCombo = new javax.swing.JComboBox<>();
-        jLabel1 = new javax.swing.JLabel();
+        projectLbl = new javax.swing.JLabel();
         projectCombo = new javax.swing.JComboBox<>();
         ganttDiagramDialog = new javax.swing.JDialog();
         diagramPanel = new javax.swing.JPanel();
@@ -131,6 +135,8 @@ public class GUI extends javax.swing.JFrame {
         newUserItem = new javax.swing.JMenuItem();
         exitMenuItem = new javax.swing.JMenuItem();
 
+        authorizationDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        authorizationDialog.setTitle("Вход в систему");
         authorizationDialog.setModal(true);
         authorizationDialog.setResizable(false);
 
@@ -203,6 +209,7 @@ public class GUI extends javax.swing.JFrame {
             .addComponent(authorizationPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
 
+        newProjectDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         newProjectDialog.setTitle("Создание нового проекта");
         newProjectDialog.setResizable(false);
 
@@ -243,8 +250,8 @@ public class GUI extends javax.swing.JFrame {
                             .addComponent(endDateLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 104, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(projectInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jTextField3)
-                            .addComponent(jTextField2)
+                            .addComponent(startProjectDate)
+                            .addComponent(endProjectDate)
                             .addComponent(descriptionScroll)
                             .addComponent(projectNameField, javax.swing.GroupLayout.PREFERRED_SIZE, 234, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addGap(0, 31, Short.MAX_VALUE))
@@ -262,12 +269,12 @@ public class GUI extends javax.swing.JFrame {
                     .addComponent(projectDescriptionLbl))
                 .addGap(39, 39, 39)
                 .addGroup(projectInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(startProjectDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(startDateLbl))
                 .addGap(34, 34, 34)
                 .addGroup(projectInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(endDateLbl)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(endProjectDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
                 .addComponent(createProjectBtn)
                 .addContainerGap())
@@ -299,8 +306,9 @@ public class GUI extends javax.swing.JFrame {
         executorsScroll.setViewportView(executorsTable);
         if (executorsTable.getColumnModel().getColumnCount() > 0) {
             executorsTable.getColumnModel().getColumn(0).setResizable(false);
-            executorsTable.getColumnModel().getColumn(0).setPreferredWidth(20);
-            executorsTable.getColumnModel().getColumn(1).setResizable(false);
+            executorsTable.getColumnModel().getColumn(0).setPreferredWidth(5);
+            executorsTable.getColumnModel().getColumn(1).setMinWidth(40);
+            executorsTable.getColumnModel().getColumn(1).setPreferredWidth(40);
         }
 
         javax.swing.GroupLayout newProjectDialogLayout = new javax.swing.GroupLayout(newProjectDialog.getContentPane());
@@ -324,6 +332,7 @@ public class GUI extends javax.swing.JFrame {
                 .addGap(0, 20, Short.MAX_VALUE))
         );
 
+        reportsDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         reportsDialog.setTitle("Отчёты");
 
         javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Проекты");
@@ -371,6 +380,7 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
+        myTasksDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         myTasksDialog.setTitle("Мои задачи");
         myTasksDialog.setResizable(false);
 
@@ -474,6 +484,7 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap(15, Short.MAX_VALUE))
         );
 
+        newTaskDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         newTaskDialog.setTitle("Создание новой задачи");
         newTaskDialog.setResizable(false);
 
@@ -501,7 +512,7 @@ public class GUI extends javax.swing.JFrame {
         priorityCombo.setModel(new DefaultComboBoxModel<>(PriorityLevel.values())
         );
 
-        jLabel1.setText("Проект:");
+        projectLbl.setText("Проект:");
 
         projectCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -516,7 +527,7 @@ public class GUI extends javax.swing.JFrame {
             .addGroup(taskInfoPanelLayout.createSequentialGroup()
                 .addGap(33, 33, 33)
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(projectLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(deadlineLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(priorityLbl, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(taskDescriptionLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -540,7 +551,7 @@ public class GUI extends javax.swing.JFrame {
             .addGroup(taskInfoPanelLayout.createSequentialGroup()
                 .addGap(25, 25, 25)
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel1)
+                    .addComponent(projectLbl)
                     .addComponent(projectCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -550,9 +561,9 @@ public class GUI extends javax.swing.JFrame {
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(taskdescriptionScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(taskDescriptionLbl))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 32, Short.MAX_VALUE)
                 .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(taskInfoPanelLayout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 32, Short.MAX_VALUE)
                         .addGroup(taskInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(executorLbl)
                             .addComponent(executorCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -562,9 +573,7 @@ public class GUI extends javax.swing.JFrame {
                             .addComponent(priorityCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(37, 37, 37)
                         .addComponent(deadlineLbl))
-                    .addGroup(taskInfoPanelLayout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(taskDeadline, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(taskDeadline, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(33, 33, 33)
                 .addComponent(createNewTaskBtn)
                 .addContainerGap())
@@ -587,6 +596,9 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
+        ganttDiagramDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        ganttDiagramDialog.setTitle("График выполнения проекта");
+
         javax.swing.GroupLayout diagramPanelLayout = new javax.swing.GroupLayout(diagramPanel);
         diagramPanel.setLayout(diagramPanelLayout);
         diagramPanelLayout.setHorizontalGroup(
@@ -608,6 +620,8 @@ public class GUI extends javax.swing.JFrame {
             ganttDiagramDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(diagramPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
+
+        executorsStatistics.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
         statisticsTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -647,7 +661,8 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap())
         );
 
-        newUserDialog.setTitle("Добавить пользователя");
+        newUserDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        newUserDialog.setTitle("Регистрация нового пользователя");
 
         fullNameLbl.setText("Полное имя:");
 
@@ -655,9 +670,14 @@ public class GUI extends javax.swing.JFrame {
 
         roleLbl.setText("Роль:");
 
-        roleComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "администратор", "менеджер", "исполнитель" }));
+        roleComboBox.setModel(new DefaultComboBoxModel<>(Role.values()));
 
         createUserBtn.setText("Добавить");
+        createUserBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                createUserBtnActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout newUserPanelLayout = new javax.swing.GroupLayout(newUserPanel);
         newUserPanel.setLayout(newUserPanelLayout);
@@ -827,15 +847,16 @@ public class GUI extends javax.swing.JFrame {
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
         if (!loginField.getText().trim().isEmpty() && passwordField.getPassword().length != 0) {
             User user = controller.authorization(loginField.getText(), String.valueOf(passwordField.getPassword()));
+            List<JTextField> fields = new ArrayList<>(Arrays.asList(loginField, passwordField));
             if (user != null) {
                 authorizationDialog.dispose();
-                clearAuthorizationFields();
+                clearFields(fields);
                 setUpUserAccess(user.getRole());
                 updateProjectsTable();
                 makeVisible(this);
             } else {
                 JOptionPane.showMessageDialog(null, "Пользователь не найден или неправильно введен логин/пароль!", null, JOptionPane.ERROR_MESSAGE);
-                clearAuthorizationFields();
+                clearFields(fields);
             }
         } else {
             JOptionPane.showMessageDialog(null, "Необходимо заполнить оба поля!", null, JOptionPane.WARNING_MESSAGE);
@@ -863,7 +884,6 @@ public class GUI extends javax.swing.JFrame {
             taskListModel.addElement(t);
         }
         tasksList.setModel(taskListModel);
-
         makeVisible(myTasksDialog);
     }//GEN-LAST:event_myTasksItemActionPerformed
 
@@ -878,26 +898,36 @@ public class GUI extends javax.swing.JFrame {
 
     private void createNewTaskBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createNewTaskBtnActionPerformed
         if (!taskNameField.getText().trim().isEmpty() && !taskDeadline.getText().trim().isEmpty() && !taskDescriptionText.getText().trim().isEmpty()) {
-            Project selected = (Project) projectCombo.getSelectedItem();
-            List<Task> tasks = selected.getTasks();
-            String newTaskName = taskNameField.getText().trim();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            LocalDate newTaskDeadline = LocalDate.parse(taskDeadline.getText().trim(), formatter);
-            for (Task task : tasks) {
-                if (task.getDeadline().equals(newTaskDeadline)) {
-                    JOptionPane.showMessageDialog(this, "Дедлайн задачи пересекается с уже существующими!", null, JOptionPane.WARNING_MESSAGE);
-                    taskDeadline.setText("");
+            LocalDate newTaskDeadline = null;
+            LocalDate today = LocalDate.now();
+            try {
+                newTaskDeadline = LocalDate.parse(taskDeadline.getText().trim(), formatter);
+                if (newTaskDeadline.isBefore(today)) {
+                    JOptionPane.showMessageDialog(null, "Дата окончания не может быть раньше даты начала!", null, JOptionPane.WARNING_MESSAGE);
+                } else {
+                    PriorityLevel priority = (PriorityLevel) priorityCombo.getSelectedItem();
+                    User executor = (User) executorCombo.getSelectedItem();
+                    Project selected = (Project) projectCombo.getSelectedItem();
+                    String newTaskName = taskNameField.getText().trim();
+                    String taskDescription = taskDescriptionText.getText().trim();
+                    boolean result = controller.createNewTask(newTaskName, taskDescription, selected, executor, priority, newTaskDeadline);
+                    if (!result) {
+                        JOptionPane.showMessageDialog(null, "Проверьте задачу на совпадение названия и дедлайна с уже существующими!", null, JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Задача  успешно создана!", null, JOptionPane.INFORMATION_MESSAGE);
+                        updateProjectsTable();
+                        newTaskDialog.dispose();
+                        List<JTextField> fields = new ArrayList<>(Arrays.asList(taskNameField, taskDeadline));
+                        clearFields(fields);
+                        taskDescriptionText.setText("");
+                    }
                 }
-                if (task.getName().equals(newTaskName)) {
-                    JOptionPane.showMessageDialog(this, "Задача с таким именем уже существует в данном проекте!", null, JOptionPane.WARNING_MESSAGE);
-                    taskNameField.setText("");
-                }
+            } catch (DateTimeParseException ex) {
+                JOptionPane.showMessageDialog(this, "Дата не соотвествует формату ГГГГ-ММ-ДД", null, JOptionPane.WARNING_MESSAGE);
             }
         } else {
             JOptionPane.showMessageDialog(this, "Необходимо заполнить все поля!", null, JOptionPane.WARNING_MESSAGE);
         }
-
-
     }//GEN-LAST:event_createNewTaskBtnActionPerformed
 
     private void statusFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_statusFilterComboActionPerformed
@@ -959,36 +989,78 @@ public class GUI extends javax.swing.JFrame {
                 executorCombo.addItem(user);
             }
         }
-
-
     }//GEN-LAST:event_projectComboActionPerformed
 
     private void createProjectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createProjectBtnActionPerformed
         DefaultTableModel tableModel = (DefaultTableModel) executorsTable.getModel();
-        List<Integer> executors = new ArrayList<>();
+        List<User> executors = new ArrayList<>();
         for (int i = 0; i < tableModel.getRowCount(); i++) {
             Boolean checked = (Boolean) tableModel.getValueAt(i, 0);
             if (Boolean.TRUE.equals(checked)) {
-                Integer id = (Integer) tableModel.getValueAt(i, 1);
-                executors.add(id);
+                User executor = (User) tableModel.getValueAt(i, 1);
+                executors.add(executor);
             }
         }
-        if (!executors.isEmpty() && !projectNameField.getText().trim().isEmpty() && !projectDescriptionText.getText().trim().isEmpty()) { //разобраться с маленькими календарями для выбора дат начала/окончания
-            List<String> existingProjects = controller.getProjectsNames();
-            String newProjectName = projectNameField.getText().trim();
-            for (String name : existingProjects) {
-                if (name.equals(newProjectName)) {
-                    JOptionPane.showMessageDialog(null, "Проект с таким именем уже существует!", null, JOptionPane.ERROR_MESSAGE);
-                    projectNameField.setText("");
+        if (!executors.isEmpty() && !projectNameField.getText().trim().isEmpty()
+                && !projectDescriptionText.getText().trim().isEmpty()
+                && !endProjectDate.getText().trim().isEmpty() && !startProjectDate.getText().trim().isEmpty()) {
+            LocalDate startDate = null;
+            LocalDate endDate = null;
+            LocalDate today = LocalDate.now();
+            try {
+                startDate = LocalDate.parse(startProjectDate.getText(), formatter);
+                endDate = LocalDate.parse(endProjectDate.getText(), formatter);
+                if (endDate.isBefore(today) || startDate.isBefore(today)) {
+                    JOptionPane.showMessageDialog(null, "Нельзя указать дату более раннюю, чем текущая!", null, JOptionPane.WARNING_MESSAGE);
+                } else if (endDate.isBefore(startDate)) {
+                    JOptionPane.showMessageDialog(null, "Дата окончания не может быть раньше даты начала!", null, JOptionPane.WARNING_MESSAGE);
+                } else {
+                    String newProjectName = projectNameField.getText().trim();
+                    String projectDescripion = projectDescriptionText.getText().trim();
+                    int transactionResult = controller.createNewProject(newProjectName, projectDescripion, startDate, endDate, executors);
+                    if (transactionResult == -1) {
+                        JOptionPane.showMessageDialog(null, "Проект с таким имененем уже существует!", null, JOptionPane.WARNING_MESSAGE);
+                        projectNameField.setText("");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Проект успешно создан!", null, JOptionPane.INFORMATION_MESSAGE);
+                        updateProjectsTable();
+                        newProjectDialog.dispose();
+                        List<JTextField> fields = new ArrayList<>(Arrays.asList(projectNameField, endProjectDate, startProjectDate));
+                        clearFields(fields);
+                        projectDescriptionText.setText("");
+                    }
                 }
+            } catch (DateTimeParseException ex) {
+                JOptionPane.showMessageDialog(null, "Дата не соотвествует формату ГГГГ-ММ-ДД", null, JOptionPane.WARNING_MESSAGE);
             }
-        //метод создания нового проекта: вызываем метод из контроллера, тот вызывает метод из оператораБД. записываем проект в БД и заново считываем
         } else {
             JOptionPane.showMessageDialog(null, "Проверьте заполненность всех полей!", null, JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_createProjectBtnActionPerformed
 
+    private void createUserBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createUserBtnActionPerformed
+        if (!usernameField.getText().trim().isEmpty() && !fullNameField.getText().trim().isEmpty()) {
+            String fullName = fullNameField.getText().trim();
+            String username = usernameField.getText().trim();
+            Role role = (Role) roleComboBox.getSelectedItem();
+            boolean transactionResult = controller.createNewUser(fullName, username, role);
+            if (transactionResult) {
+                JOptionPane.showMessageDialog(null, "Пользователь успешно добавлен!", null, JOptionPane.INFORMATION_MESSAGE);
+                updateExecutorsAvaliableTable();
+                fullNameField.setText("");
+                usernameField.setText("");
+                newUserDialog.dispose();
+            } else {
+                JOptionPane.showMessageDialog(null, "Пользователь с таким имененем уже существует!", null, JOptionPane.WARNING_MESSAGE);
+                fullNameField.setText("");
+                usernameField.setText("");
+            }
+        }
+    }//GEN-LAST:event_createUserBtnActionPerformed
+
     private void updateProjectsTable() {
+        DefaultTableModel model = (DefaultTableModel) activeProjectsTable.getModel();
+        model.setRowCount(0);
         List<Project> projects = controller.getProjectsForCurrentUser();
         Object[][] data = new Object[projects.size()][3];
         for (int i = 0; i < projects.size(); i++) {
@@ -1013,12 +1085,14 @@ public class GUI extends javax.swing.JFrame {
     }
 
     private void updateExecutorsAvaliableTable() {
+        DefaultTableModel model = (DefaultTableModel) executorsTable.getModel();
+        model.setRowCount(0);
         List<User> users = controller.getAllUsers();
         Object[][] data = new Object[users.size()][3];
         for (int i = 0; i < users.size(); i++) {
             User user = users.get(i);
             data[i][0] = Boolean.FALSE;
-            data[i][1] = user.getFullName();
+            data[i][1] = user;
 
         }
         String[] titles = {"Выбрать", "Пользователь"};
@@ -1053,9 +1127,10 @@ public class GUI extends javax.swing.JFrame {
         createTaskBtn.setEnabled(role != Role.EXECUTOR);
     }
 
-    private void clearAuthorizationFields() {
-        loginField.setText("");
-        passwordField.setText("");
+    private void clearFields(List<JTextField> fields) {
+        for (JTextField field : fields) {
+            field.setText("");
+        }
     }
 
     private void makeVisible(JDialog dialog) {
@@ -1070,7 +1145,7 @@ public class GUI extends javax.swing.JFrame {
     }
 
     private void drawGanttDiagramm() {
-//
+
     }
 
     private void startGUI() {
@@ -1095,6 +1170,7 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JScrollPane descriptionScroll;
     private javax.swing.JPanel diagramPanel;
     private javax.swing.JLabel endDateLbl;
+    private javax.swing.JTextField endProjectDate;
     private javax.swing.JComboBox<User> executorCombo;
     private javax.swing.JLabel executorLbl;
     private javax.swing.JScrollPane executorsScroll;
@@ -1107,9 +1183,6 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JTextField fullNameField;
     private javax.swing.JLabel fullNameLbl;
     private javax.swing.JDialog ganttDiagramDialog;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JTextField jTextField2;
-    private javax.swing.JTextField jTextField3;
     private javax.swing.JPanel lblPanel;
     private javax.swing.JButton loginBtn;
     private javax.swing.JTextField loginField;
@@ -1136,15 +1209,17 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JLabel projectDescriptionLbl;
     private javax.swing.JTextArea projectDescriptionText;
     private javax.swing.JPanel projectInfoPanel;
+    private javax.swing.JLabel projectLbl;
     private javax.swing.JTextField projectNameField;
     private javax.swing.JLabel projectNameLbl;
     private javax.swing.JScrollPane projectsScroll;
     private javax.swing.JTree projectsTree;
     private javax.swing.JDialog reportsDialog;
     private javax.swing.JMenuItem reportsItem;
-    private javax.swing.JComboBox<String> roleComboBox;
+    private javax.swing.JComboBox<Role> roleComboBox;
     private javax.swing.JLabel roleLbl;
     private javax.swing.JLabel startDateLbl;
+    private javax.swing.JTextField startProjectDate;
     private javax.swing.JScrollPane statisticsScroll;
     private javax.swing.JTable statisticsTable;
     private javax.swing.JComboBox<String> statusFilterCombo;

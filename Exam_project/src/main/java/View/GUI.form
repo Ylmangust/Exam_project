@@ -4,6 +4,8 @@
   <NonVisualComponents>
     <Container class="javax.swing.JDialog" name="authorizationDialog">
       <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
+        <Property name="title" type="java.lang.String" value="&#x412;&#x445;&#x43e;&#x434; &#x432; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43c;&#x443;"/>
         <Property name="modal" type="boolean" value="true"/>
         <Property name="resizable" type="boolean" value="false"/>
       </Properties>
@@ -115,6 +117,7 @@
     </Container>
     <Container class="javax.swing.JDialog" name="newProjectDialog">
       <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
         <Property name="title" type="java.lang.String" value="&#x421;&#x43e;&#x437;&#x434;&#x430;&#x43d;&#x438;&#x435; &#x43d;&#x43e;&#x432;&#x43e;&#x433;&#x43e; &#x43f;&#x440;&#x43e;&#x435;&#x43a;&#x442;&#x430;"/>
         <Property name="resizable" type="boolean" value="false"/>
       </Properties>
@@ -166,8 +169,8 @@
                               </Group>
                               <EmptySpace type="unrelated" max="-2" attributes="0"/>
                               <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                                  <Component id="jTextField3" max="32767" attributes="0"/>
-                                  <Component id="jTextField2" max="32767" attributes="0"/>
+                                  <Component id="startProjectDate" max="32767" attributes="0"/>
+                                  <Component id="endProjectDate" max="32767" attributes="0"/>
                                   <Component id="descriptionScroll" alignment="0" max="32767" attributes="0"/>
                                   <Component id="projectNameField" min="-2" pref="234" max="-2" attributes="0"/>
                               </Group>
@@ -192,13 +195,13 @@
                       </Group>
                       <EmptySpace min="-2" pref="39" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="3" attributes="0">
-                          <Component id="jTextField3" alignment="3" min="-2" max="-2" attributes="0"/>
+                          <Component id="startProjectDate" alignment="3" min="-2" max="-2" attributes="0"/>
                           <Component id="startDateLbl" alignment="3" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace min="-2" pref="34" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="3" attributes="0">
                           <Component id="endDateLbl" alignment="3" min="-2" max="-2" attributes="0"/>
-                          <Component id="jTextField2" alignment="3" min="-2" max="-2" attributes="0"/>
+                          <Component id="endProjectDate" alignment="3" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace pref="42" max="32767" attributes="0"/>
                       <Component id="createProjectBtn" min="-2" max="-2" attributes="0"/>
@@ -245,9 +248,9 @@
                 <Property name="text" type="java.lang.String" value="&#x414;&#x430;&#x442;&#x430; &#x43e;&#x43a;&#x43e;&#x43d;&#x447;&#x430;&#x43d;&#x438;&#x44f;: "/>
               </Properties>
             </Component>
-            <Component class="javax.swing.JTextField" name="jTextField2">
+            <Component class="javax.swing.JTextField" name="endProjectDate">
             </Component>
-            <Component class="javax.swing.JTextField" name="jTextField3">
+            <Component class="javax.swing.JTextField" name="startProjectDate">
             </Component>
             <Component class="javax.swing.JButton" name="createProjectBtn">
               <Properties>
@@ -276,12 +279,12 @@
                 </Property>
                 <Property name="columnModel" type="javax.swing.table.TableColumnModel" editor="org.netbeans.modules.form.editors2.TableColumnModelEditor">
                   <TableColumnModel selectionModel="0">
-                    <Column maxWidth="-1" minWidth="-1" prefWidth="20" resizable="false">
+                    <Column maxWidth="-1" minWidth="-1" prefWidth="5" resizable="false">
                       <Title/>
                       <Editor/>
                       <Renderer/>
                     </Column>
-                    <Column maxWidth="-1" minWidth="-1" prefWidth="-1" resizable="false">
+                    <Column maxWidth="-1" minWidth="40" prefWidth="40" resizable="true">
                       <Title/>
                       <Editor/>
                       <Renderer/>
@@ -299,6 +302,7 @@
     </Container>
     <Container class="javax.swing.JDialog" name="reportsDialog">
       <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
         <Property name="title" type="java.lang.String" value="&#x41e;&#x442;&#x447;&#x451;&#x442;&#x44b;"/>
       </Properties>
 
@@ -376,6 +380,7 @@
     </Container>
     <Container class="javax.swing.JDialog" name="myTasksDialog">
       <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
         <Property name="title" type="java.lang.String" value="&#x41c;&#x43e;&#x438; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438;"/>
         <Property name="resizable" type="boolean" value="false"/>
       </Properties>
@@ -564,6 +569,7 @@
     </Container>
     <Container class="javax.swing.JDialog" name="newTaskDialog">
       <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
         <Property name="title" type="java.lang.String" value="&#x421;&#x43e;&#x437;&#x434;&#x430;&#x43d;&#x438;&#x435; &#x43d;&#x43e;&#x432;&#x43e;&#x439; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438;"/>
         <Property name="resizable" type="boolean" value="false"/>
       </Properties>
@@ -597,7 +603,7 @@
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace min="-2" pref="33" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                          <Component id="jLabel1" max="32767" attributes="0"/>
+                          <Component id="projectLbl" max="32767" attributes="0"/>
                           <Component id="deadlineLbl" alignment="0" max="32767" attributes="0"/>
                           <Component id="priorityLbl" alignment="1" max="32767" attributes="0"/>
                           <Component id="taskDescriptionLbl" max="32767" attributes="0"/>
@@ -626,7 +632,7 @@
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace min="-2" pref="25" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="3" attributes="0">
-                          <Component id="jLabel1" alignment="3" min="-2" max="-2" attributes="0"/>
+                          <Component id="projectLbl" alignment="3" min="-2" max="-2" attributes="0"/>
                           <Component id="projectCombo" alignment="3" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace type="separate" max="-2" attributes="0"/>
@@ -639,9 +645,9 @@
                           <Component id="taskdescriptionScroll" min="-2" pref="98" max="-2" attributes="0"/>
                           <Component id="taskDescriptionLbl" min="-2" max="-2" attributes="0"/>
                       </Group>
+                      <EmptySpace pref="32" max="32767" attributes="0"/>
                       <Group type="103" groupAlignment="1" attributes="0">
                           <Group type="102" alignment="1" attributes="0">
-                              <EmptySpace pref="32" max="32767" attributes="0"/>
                               <Group type="103" groupAlignment="3" attributes="0">
                                   <Component id="executorLbl" alignment="3" min="-2" max="-2" attributes="0"/>
                                   <Component id="executorCombo" alignment="3" min="-2" max="-2" attributes="0"/>
@@ -654,10 +660,7 @@
                               <EmptySpace min="-2" pref="37" max="-2" attributes="0"/>
                               <Component id="deadlineLbl" min="-2" max="-2" attributes="0"/>
                           </Group>
-                          <Group type="102" alignment="1" attributes="0">
-                              <EmptySpace max="32767" attributes="0"/>
-                              <Component id="taskDeadline" min="-2" max="-2" attributes="0"/>
-                          </Group>
+                          <Component id="taskDeadline" alignment="1" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace min="-2" pref="33" max="-2" attributes="0"/>
                       <Component id="createNewTaskBtn" min="-2" max="-2" attributes="0"/>
@@ -739,7 +742,7 @@
                 <AuxValue name="JavaCodeGenerator_TypeParameters" type="java.lang.String" value="&lt;PriorityLevel&gt;"/>
               </AuxValues>
             </Component>
-            <Component class="javax.swing.JLabel" name="jLabel1">
+            <Component class="javax.swing.JLabel" name="projectLbl">
               <Properties>
                 <Property name="text" type="java.lang.String" value="&#x41f;&#x440;&#x43e;&#x435;&#x43a;&#x442;:"/>
               </Properties>
@@ -762,6 +765,10 @@
       </SubComponents>
     </Container>
     <Container class="javax.swing.JDialog" name="ganttDiagramDialog">
+      <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
+        <Property name="title" type="java.lang.String" value="&#x413;&#x440;&#x430;&#x444;&#x438;&#x43a; &#x432;&#x44b;&#x43f;&#x43e;&#x43b;&#x43d;&#x435;&#x43d;&#x438;&#x44f; &#x43f;&#x440;&#x43e;&#x435;&#x43a;&#x442;&#x430;"/>
+      </Properties>
 
       <Layout>
         <DimensionLayout dim="0">
@@ -794,6 +801,9 @@
       </SubComponents>
     </Container>
     <Container class="javax.swing.JDialog" name="executorsStatistics">
+      <Properties>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
+      </Properties>
 
       <Layout>
         <DimensionLayout dim="0">
@@ -862,7 +872,8 @@
     </Container>
     <Container class="javax.swing.JDialog" name="newUserDialog">
       <Properties>
-        <Property name="title" type="java.lang.String" value="&#x414;&#x43e;&#x431;&#x430;&#x432;&#x438;&#x442;&#x44c; &#x43f;&#x43e;&#x43b;&#x44c;&#x437;&#x43e;&#x432;&#x430;&#x442;&#x435;&#x43b;&#x44f;"/>
+        <Property name="defaultCloseOperation" type="int" value="2"/>
+        <Property name="title" type="java.lang.String" value="&#x420;&#x435;&#x433;&#x438;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x44f; &#x43d;&#x43e;&#x432;&#x43e;&#x433;&#x43e; &#x43f;&#x43e;&#x43b;&#x44c;&#x437;&#x43e;&#x432;&#x430;&#x442;&#x435;&#x43b;&#x44f;"/>
       </Properties>
 
       <Layout>
@@ -954,16 +965,12 @@
             </Component>
             <Component class="javax.swing.JComboBox" name="roleComboBox">
               <Properties>
-                <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
-                  <StringArray count="3">
-                    <StringItem index="0" value="&#x430;&#x434;&#x43c;&#x438;&#x43d;&#x438;&#x441;&#x442;&#x440;&#x430;&#x442;&#x43e;&#x440;"/>
-                    <StringItem index="1" value="&#x43c;&#x435;&#x43d;&#x435;&#x434;&#x436;&#x435;&#x440;"/>
-                    <StringItem index="2" value="&#x438;&#x441;&#x43f;&#x43e;&#x43b;&#x43d;&#x438;&#x442;&#x435;&#x43b;&#x44c;"/>
-                  </StringArray>
+                <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.RADConnectionPropertyEditor">
+                  <Connection code="new DefaultComboBoxModel&lt;&gt;(Role.values())" type="code"/>
                 </Property>
               </Properties>
               <AuxValues>
-                <AuxValue name="JavaCodeGenerator_TypeParameters" type="java.lang.String" value="&lt;String&gt;"/>
+                <AuxValue name="JavaCodeGenerator_TypeParameters" type="java.lang.String" value="&lt;Role&gt;"/>
               </AuxValues>
             </Component>
             <Component class="javax.swing.JTextField" name="fullNameField">
@@ -974,6 +981,9 @@
               <Properties>
                 <Property name="text" type="java.lang.String" value="&#x414;&#x43e;&#x431;&#x430;&#x432;&#x438;&#x442;&#x44c;"/>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="createUserBtnActionPerformed"/>
+              </Events>
             </Component>
           </SubComponents>
         </Container>

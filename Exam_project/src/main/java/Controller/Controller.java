@@ -11,6 +11,10 @@ import Model.DatabaseManager;
 import Model.databaseEntities.Project;
 import Model.databaseEntities.Task;
 import Model.databaseEntities.User;
+import Model.enums.PriorityLevel;
+import Model.enums.Role;
+import java.sql.Date;
+import java.time.LocalDate;
 
 /**
  *
@@ -41,19 +45,31 @@ public class Controller {
         return dataManager.getCurrentUser();
     }
 
-    public List<Project> getProjectsForCurrentUser(){
+    public List<Project> getProjectsForCurrentUser() {
         return dataManager.getProjects();
     }
-    
-    public List<Task> getTasksForCurrentUser(){
+
+    public List<Task> getTasksForCurrentUser() {
         return dataManager.getUserTasks();
     }
-    
-    public List<User> getAllUsers(){
+
+    public List<User> getAllUsers() {
         return dataManager.getUsers();
     }
-    
-    public List <String> getProjectsNames(){
+
+    public List<String> getProjectsNames() {
         return dataManager.getProjectNames();
+    }
+
+    public int createNewProject(String projectName, String description, LocalDate startDate, LocalDate endDate, List<User> executors) {
+        return dataManager.createProject(projectName, description, startDate, endDate, executors);
+    }
+    
+    public boolean createNewUser(String fullName, String name, Role role){
+        return dataManager.createUser(fullName, name, role);
+    }
+    
+    public boolean createNewTask(String name, String description, Project project, User executor, PriorityLevel priority, LocalDate deadline){
+        return dataManager.createTask(name, description, project, executor, priority, deadline);
     }
 }
