@@ -7,8 +7,8 @@ package Model.databaseEntities;
 import Model.enums.Status;
 import Model.enums.PriorityLevel;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -24,13 +24,15 @@ public class Task {
     private User executor;
     private PriorityLevel priority;
     private Status status;
-    private LocalDate createdAt;
+    private LocalDateTime createdAt;
     private LocalDate deadline;
-    private LocalDate completedAt;
+    private LocalDateTime completedAt;
     private List<Comment> comments = new ArrayList<>();
+    private List<TaskHistory> history = new ArrayList<>();
     private Project project;
+    private boolean isRated;
 
-    public Task(int id, String name, String description, User creator, User executor, PriorityLevel priority, Status status, LocalDate createdAt, LocalDate deadline) {
+    public Task(int id, String name, String description, User creator, User executor, PriorityLevel priority, Status status, LocalDateTime createdAt, LocalDate deadline, boolean isRated) {
         this.taskID = id;
         this.name = name;
         this.description = description;
@@ -40,6 +42,7 @@ public class Task {
         this.status = status;
         this.createdAt = createdAt;
         this.deadline = deadline;
+        this.isRated = isRated;
     }
 
     public Project getProject() {
@@ -52,6 +55,14 @@ public class Task {
 
     public void setComments(List<Comment> comments) {
         this.comments = comments;
+    }
+
+    public void setHistory(List<TaskHistory> history) {
+        this.history = history;
+    }
+
+    public List<TaskHistory> getHistory() {
+        return history;
     }
 
     public String getName() {
@@ -78,7 +89,7 @@ public class Task {
         return status;
     }
 
-    public LocalDate getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
@@ -86,21 +97,37 @@ public class Task {
         return deadline;
     }
 
-    public LocalDate getCompletedAt() {
+    public LocalDateTime getCompletedAt() {
         return completedAt;
+    }
+
+    public int getTaskID() {
+        return taskID;
+    }
+
+    public boolean getIsRated() {
+        return isRated;
+    }
+
+    public void setIsRated(boolean isRated) {
+        this.isRated = isRated;
     }
 
     public void addComment(Comment comment) {
         comments.add(comment);
     }
 
-    public void setCompletedAt(LocalDate completedAt) {
+    public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
     }
 
     @Override
     public String toString() {
-        return name + project.getProjectName();
+        return name;
     }
 
 }

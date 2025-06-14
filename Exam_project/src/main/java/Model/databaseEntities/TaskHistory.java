@@ -5,7 +5,8 @@
 package Model.databaseEntities;
 
 import Model.enums.Status;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  *
@@ -14,14 +15,12 @@ import java.util.Date;
 public class TaskHistory {
 
     private User user;
-    private Status oldStatus;
-    private Status newStatus;
-    private Date changed_at;
+    private Status statusSet;
+    private LocalDateTime changed_at;
 
-    public TaskHistory(User user, Status oldStatus, Status newStatus, Date changed_at) {
+    public TaskHistory(User user, Status statusSet, LocalDateTime changed_at) {
         this.user = user;
-        this.oldStatus = oldStatus;
-        this.newStatus = newStatus;
+        this.statusSet = statusSet;
         this.changed_at = changed_at;
     }
 
@@ -29,15 +28,11 @@ public class TaskHistory {
         return user;
     }
 
-    public Status getOldStatus() {
-        return oldStatus;
+    public Status getStatusSet() {
+        return statusSet;
     }
 
-    public Status getNewStatus() {
-        return newStatus;
-    }
-
-    public Date getChanged_at() {
+    public LocalDateTime getChanged_at() {
         return changed_at;
     }
     

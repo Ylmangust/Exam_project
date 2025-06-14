@@ -14,8 +14,5 @@ public class Exam_project {
 
     public static void main(String[] args) {
         Controller ctrl = new Controller();
-        
-        
-        
     }
 }

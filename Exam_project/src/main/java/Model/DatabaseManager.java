@@ -4,9 +4,11 @@
  */
 package Model;
 
+import Model.databaseEntities.Comment;
 import Model.databaseEntities.Project;
 import Model.databaseEntities.User;
 import Model.databaseEntities.Task;
+import Model.databaseEntities.TaskHistory;
 import Model.enums.Role;
 import Model.enums.Status;
 import Model.enums.PriorityLevel;
@@ -23,8 +25,8 @@ import static Model.enums.Role.ADMIN;
 import static Model.enums.Role.EXECUTOR;
 import static Model.enums.Role.MANAGER;
 import java.security.SecureRandom;
-import java.sql.Date;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 
 /**
@@ -37,11 +39,8 @@ public class DatabaseManager {
     private String user = "postgres.oghifeiboocdhvyuzkuo";
     private String url = "jdbc:postgresql://aws-0-eu-north-1.pooler.supabase.com:5432/postgres";
     private Connection connection;
-    private User currentUser;
-    private List<User> users = new ArrayList<>();
-    private List<Project> projects = new ArrayList<>();
+    User currentUser;
     private List<Task> userTasks = new ArrayList<>();
-    private List<String> projectNames = new ArrayList<>();
 
     public DatabaseManager() {
         try {
@@ -58,7 +57,6 @@ public class DatabaseManager {
     public User autorization(String username, String password) {
         String query = "SELECT * FROM users where username = ? and password = ?";
         PreparedStatement statement = null;
-        clearCache();
         try {
             statement = connection.prepareStatement(query);
             statement.setString(1, username);
@@ -71,11 +69,7 @@ public class DatabaseManager {
                 Role role = Role.valueOf(roleStr);
                 int rate = resultSet.getInt("rate");
                 currentUser = new User(id, username, password, name, role, rate);
-                getProjectsForCurrentUser(connection);
-                if (currentUser.getRole() != Role.EXECUTOR) {
-                    readUsers(connection);
-                    getAllProjectsNames(connection);
-                }
+                getProjectsForCurrentUser();
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -91,10 +85,8 @@ public class DatabaseManager {
         return currentUser;
     }
 
-    private void readUsers(Connection connection) {
-        if (!users.isEmpty()) {
-            users.clear();
-        }
+    public List<User> readUsers() {
+        List<User> users = new ArrayList<>();
         String query = "SELECT * FROM users";
         try (PreparedStatement statement = connection.prepareStatement(query); ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
@@ -110,13 +102,14 @@ public class DatabaseManager {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return users;
     }
 
-    private void getProjectsForCurrentUser(Connection connection) {
-        if (!projects.isEmpty() || !userTasks.isEmpty()) {
-            projects.clear();
+    public List<Project> getProjectsForCurrentUser() {
+        if (!userTasks.isEmpty()) {
             userTasks.clear();
         }
+        List<Project> projects = new ArrayList<>();
         String projectsQuery = buildQueryByRole();
         try (PreparedStatement projectsStmt = connection.prepareStatement(projectsQuery)) {
             switch (currentUser.getRole()) {
@@ -141,22 +134,22 @@ public class DatabaseManager {
                         status,
                         resultSet.getDate("start_date").toLocalDate(),
                         resultSet.getDate("end_date").toLocalDate());
-                project.setExecutors(getProjectExecutors(project.getProjectID(), connection));
-                project.setTasks(getProjectTasks(project.getProjectID(), project, connection));
+                getProjectExecutors(project);
+                getProjectTasks(project);
                 projects.add(project);
             }
             projects.sort(Comparator.comparing((Project project) -> project.getEndDate()));
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
-
+        return projects;
     }
 
-    private List<Task> getProjectTasks(int projectID, Project project, Connection connection) {
+    public List<Task> getProjectTasks(Project project) {
         List<Task> tasks = new ArrayList<>();
         String taskQuery = "SELECT * FROM tasks WHERE project_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(taskQuery)) {
-            statement.setInt(1, projectID);
+            statement.setInt(1, project.getProjectID());
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 int creatorId = resultSet.getInt("creator_id");
@@ -167,6 +160,7 @@ public class DatabaseManager {
                 PriorityLevel priority = PriorityLevel.valueOf(priorityStr);
                 String statusStr = resultSet.getString("status");
                 Status status = Status.valueOf(statusStr);
+                boolean isRated = resultSet.getBoolean("is_rated");
                 Task task = new Task(resultSet.getInt("task_id"),
                         resultSet.getString("task_title"),
                         resultSet.getString("task_description"),
@@ -174,18 +168,20 @@ public class DatabaseManager {
                         executor,
                         priority,
                         status,
-                        resultSet.getTimestamp("created_at").toLocalDateTime().toLocalDate(),
-                        resultSet.getDate("deadline").toLocalDate()
+                        resultSet.getTimestamp("created_at").toLocalDateTime(),
+                        resultSet.getDate("deadline").toLocalDate(),
+                        isRated
                 );
                 if (resultSet.getDate("completed_at") != null) {
-                    task.setCompletedAt(resultSet.getDate("completed_at").toLocalDate());
+                    task.setCompletedAt(resultSet.getTimestamp("completed_at").toLocalDateTime());
                 }
                 task.setProject(project);
+                getTaskHistory(task);
+                getComments(task);
                 if (task.getExecutor().getUserId() == currentUser.getUserId()) {
                     userTasks.add(task);
                 }
                 tasks.add(task);
-
             }
         } catch (SQLException ex) {
             Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
@@ -193,11 +189,93 @@ public class DatabaseManager {
         return tasks;
     }
 
-    private List<User> getProjectExecutors(int projectID, Connection connection) {
+    public Task getTaskByID(int taskID) {
+        Task task = null;
+        String taskQuery = "SELECT * FROM tasks WHERE task_id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(taskQuery)) {
+            statement.setInt(1, taskID);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                int creatorId = resultSet.getInt("creator_id");
+                User creator = getCreatorByID(creatorId, connection);
+                String priorityStr = resultSet.getString("priority");
+                int executorId = resultSet.getInt("executor_id");
+                User executor = getTaskExecutor(executorId, connection);
+                PriorityLevel priority = PriorityLevel.valueOf(priorityStr);
+                String statusStr = resultSet.getString("status");
+                Status status = Status.valueOf(statusStr);
+                boolean isRated = resultSet.getBoolean("is_rated");
+                task = new Task(resultSet.getInt("task_id"),
+                        resultSet.getString("task_title"),
+                        resultSet.getString("task_description"),
+                        creator,
+                        executor,
+                        priority,
+                        status,
+                        resultSet.getTimestamp("created_at").toLocalDateTime(),
+                        resultSet.getDate("deadline").toLocalDate(),
+                        isRated
+                );
+                if (resultSet.getDate("completed_at") != null) {
+                    task.setCompletedAt(resultSet.getTimestamp("completed_at").toLocalDateTime());
+                }
+                getTaskHistory(task);
+                getComments(task);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return task;
+    }
+
+    private List<TaskHistory> getTaskHistory(Task task) {
+        List<TaskHistory> taskHistory = new ArrayList<>();
+        String historyQuery = "SELECT * FROM task_history WHERE task_id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(historyQuery)) {
+            statement.setInt(1, task.getTaskID());
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                String statusStr = resultSet.getString("new_status");
+                Status status = Status.valueOf(statusStr);
+                LocalDateTime date = resultSet.getTimestamp("changed_at").toLocalDateTime();
+                int creatorID = resultSet.getInt("changed_by");
+                User creator = getCreatorByID(creatorID, connection);
+                TaskHistory record = new TaskHistory(creator, status, date);
+                taskHistory.add(record);
+            }
+            task.setHistory(taskHistory);
+        } catch (SQLException ex) {
+            Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return taskHistory;
+    }
+
+    private List<Comment> getComments(Task task) {
+        List<Comment> taskComments = new ArrayList<>();
+        String historyQuery = "SELECT * FROM comments WHERE task_id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(historyQuery)) {
+            statement.setInt(1, task.getTaskID());
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                LocalDateTime date = resultSet.getTimestamp("created_at").toLocalDateTime();
+                int creatorID = resultSet.getInt("user_id");
+                User creator = getCreatorByID(creatorID, connection);
+                String message = resultSet.getString("message");
+                Comment record = new Comment(creator, message, date);
+                taskComments.add(record);
+            }
+            task.setComments(taskComments);
+        } catch (SQLException ex) {
+            Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return taskComments;
+    }
+
+    private List<User> getProjectExecutors(Project project) {
         List<User> executors = new ArrayList<>();
         String executorQuery = "SELECT u.* FROM users u INNER JOIN project_executors pe ON pe.user_id = u.user_id WHERE pe.project_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(executorQuery)) {
-            statement.setInt(1, projectID);
+            statement.setInt(1, project.getProjectID());
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 String roleStr = resultSet.getString("role");
@@ -211,6 +289,7 @@ public class DatabaseManager {
                 );
                 executors.add(executor);
             }
+            project.setExecutors(executors);
         } catch (SQLException ex) {
             Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -262,17 +341,6 @@ public class DatabaseManager {
         return creator;
     }
 
-    private void getAllProjectsNames(Connection connection) {
-        String userQuery = "SELECT project_name FROM projects";
-        try (PreparedStatement statement = connection.prepareStatement(userQuery); ResultSet resultSet = statement.executeQuery()) {
-            while (resultSet.next()) {
-                projectNames.add(resultSet.getString("project_name"));
-            }
-        } catch (SQLException ex) {
-            Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
     private String buildQueryByRole() {
         switch (currentUser.getRole()) {
             case ADMIN -> {
@@ -304,7 +372,6 @@ public class DatabaseManager {
         int projectId = -1;
         try {
             connection.setAutoCommit(false); // Начинаем транзакцию
-
             projectStmt = connection.prepareStatement(insertProject);
             projectStmt.setString(1, projectName);
             projectStmt.setString(2, description);
@@ -315,21 +382,15 @@ public class DatabaseManager {
             rs = projectStmt.executeQuery(); // есть RETURNING
             if (rs.next()) {
                 projectId = rs.getInt(1);
-            } else {
-                throw new SQLException("Не удалось получить project_id после вставки проекта.");
+                executorsStmt = connection.prepareStatement(insertExecutors);
+                for (User user : executors) {
+                    executorsStmt.setInt(1, projectId);
+                    executorsStmt.setInt(2, user.getUserId());
+                    executorsStmt.addBatch(); //добавили в пакет запросов
+                }
+                executorsStmt.executeBatch(); //выполнили весь пакет целиком
             }
-
-            // 2. Вставляем исполнителей
-            executorsStmt = connection.prepareStatement(insertExecutors);
-            for (User user : executors) {
-                executorsStmt.setInt(1, projectId);
-                executorsStmt.setInt(2, user.getUserId());
-                executorsStmt.addBatch(); //добавили в пакет запросов
-            }
-            executorsStmt.executeBatch(); //выполнили весь пакет целиком
-
             connection.commit();
-            getProjectsForCurrentUser(connection);
             return projectId;
         } catch (SQLException ex) {
             if (connection != null) try {
@@ -364,24 +425,90 @@ public class DatabaseManager {
     }
 
     public boolean createTask(String name, String description, Project project, User executor, PriorityLevel priority, LocalDate deadline) {
-        String insertTask = "INSERT INTO tasks (task_title, task_description, project_id, creator_id, executor_id, priority, deadline) VALUES (?,?,?,?,?,?,?)";
+        String insertTask = "INSERT INTO tasks (task_title, task_description, project_id, creator_id, executor_id, priority, created_at, deadline) VALUES (?,?,?,?,?,?,?,?) returning task_id";
+        String insertTaskHistory = "INSERT INTO task_history (task_id, changed_by, new_status) VALUES (?,?,?)";
         boolean result = false;
-        try (PreparedStatement taskStmt = connection.prepareStatement(insertTask)) {
-            taskStmt.setString(1, name);
-            taskStmt.setString(2, description);
-            taskStmt.setInt(3, project.getProjectID());
-            taskStmt.setInt(4, currentUser.getUserId());
-            taskStmt.setInt(5, executor.getUserId());
-            taskStmt.setObject(6, priority.name(), java.sql.Types.OTHER);
-            taskStmt.setDate(7, java.sql.Date.valueOf(deadline));
-            taskStmt.executeUpdate();
-            result = true;
-            getProjectsForCurrentUser(connection);
+        try {
+            connection.setAutoCommit(false);
+            try (PreparedStatement taskStmt = connection.prepareStatement(insertTask)) {
+                taskStmt.setString(1, name);
+                taskStmt.setString(2, description);
+                taskStmt.setInt(3, project.getProjectID());
+                taskStmt.setInt(4, currentUser.getUserId());
+                taskStmt.setInt(5, executor.getUserId());
+                taskStmt.setObject(6, priority.name(), java.sql.Types.OTHER);
+                taskStmt.setTimestamp(6, java.sql.Timestamp.valueOf(LocalDateTime.now()));
+                taskStmt.setDate(8, java.sql.Date.valueOf(deadline));
+
+                try (ResultSet rs = taskStmt.executeQuery()) {
+                    if (rs.next()) {
+                        int newTaskId = rs.getInt(1);
+                        try (PreparedStatement historyStmt = connection.prepareStatement(insertTaskHistory)) {
+                            historyStmt.setInt(1, newTaskId);
+                            historyStmt.setInt(2, currentUser.getUserId());
+                            historyStmt.setObject(3, Status.NEW.name(), java.sql.Types.OTHER);
+                            historyStmt.executeUpdate();
+                        }
+                        result = true;
+                        getProjectsForCurrentUser();
+                    }
+                }
+            }
+            connection.commit();
         } catch (SQLException ex) {
+            try {
+                connection.rollback();
+            } catch (SQLException ignore) {
+            }
             if ("23505".equals(ex.getSQLState())) {
                 return false;
             } else {
                 ex.printStackTrace();
+            }
+        } finally {
+            try {
+                connection.setAutoCommit(true);
+            } catch (SQLException ignore) {
+            }
+        }
+        return result;
+    }
+
+    public boolean changeStatus(int taskId, Status newStatus) {
+        String updateTaskSql = "UPDATE tasks SET status = ? WHERE task_id = ?";
+        String insertTaskHistorySql = "INSERT INTO task_history (task_id, changed_by, new_status, changed_at) VALUES (?, ?, ?,?)";
+        boolean result = false;
+        try {
+            connection.setAutoCommit(false);
+            try (PreparedStatement updateTaskStmt = connection.prepareStatement(updateTaskSql)) {
+                updateTaskStmt.setObject(1, newStatus.name(), java.sql.Types.OTHER);
+                updateTaskStmt.setInt(2, taskId);
+                int rowsUpdated = updateTaskStmt.executeUpdate();
+                if (rowsUpdated != 1) {
+                    connection.rollback();
+                    return false; // задачи с таким id нет
+                }
+            }
+
+            try (PreparedStatement insertHistoryStmt = connection.prepareStatement(insertTaskHistorySql)) {
+                insertHistoryStmt.setInt(1, taskId);
+                insertHistoryStmt.setInt(2, currentUser.getUserId());
+                insertHistoryStmt.setObject(3, newStatus.name(), java.sql.Types.OTHER);
+                insertHistoryStmt.setTimestamp(4, java.sql.Timestamp.valueOf(LocalDateTime.now()));
+                insertHistoryStmt.executeUpdate();
+            }
+            connection.commit();
+            result = true;
+        } catch (SQLException ex) {
+            try {
+                connection.rollback();
+            } catch (SQLException ignore) {
+            }
+            ex.printStackTrace();
+        } finally {
+            try {
+                connection.setAutoCommit(true);
+            } catch (SQLException ignore) {
             }
         }
         return result;
@@ -398,12 +525,71 @@ public class DatabaseManager {
             statement.setObject(4, role.name(), java.sql.Types.OTHER);
             statement.executeUpdate();
             result = true;
-            readUsers(connection);
         } catch (SQLException ex) {
             if ("23505".equals(ex.getSQLState())) {
                 return false;
             } else {
                 ex.printStackTrace();
+            }
+        }
+        return result;
+    }
+
+    public boolean createComments(int taskID, String message, LocalDateTime date) {
+        String insertUser = "INSERT INTO comments (task_id, user_id, message, created_at) VALUES (?, ?, ?, ?)";
+        boolean result = false;
+        try (PreparedStatement statement = connection.prepareStatement(insertUser)) {
+            statement.setInt(1, taskID);
+            statement.setInt(2, currentUser.getUserId());
+            statement.setString(3, message);
+            statement.setObject(4, java.sql.Timestamp.valueOf(date));
+            statement.executeUpdate();
+            result = true;
+        } catch (SQLException ex) {
+            if ("23505".equals(ex.getSQLState())) {
+                return false;
+            } else {
+                ex.printStackTrace();
+            }
+        }
+        return result;
+    }
+
+    public boolean addPointsForTask(int userId, Integer points, int taskId) {
+        boolean result = false;
+        if (points == null) {
+            return false;
+        }
+        String addPointsQuery = "UPDATE users SET rate = rate + ? WHERE user_id = ?";
+        String updateTaskSql = "UPDATE tasks SET is_rated = TRUE WHERE task_id = ?";
+        try {
+            connection.setAutoCommit(false);
+            try (PreparedStatement updateTaskStmt = connection.prepareStatement(addPointsQuery)) {
+                updateTaskStmt.setInt(1, points);
+                updateTaskStmt.setInt(2, userId);
+                int rowsUpdated = updateTaskStmt.executeUpdate();
+                if (rowsUpdated != 1) {
+                    connection.rollback();
+                    return false;
+                }
+            }
+
+            try (PreparedStatement updateTaskRated = connection.prepareStatement(updateTaskSql)) {
+                updateTaskRated.setInt(1, taskId);
+                updateTaskRated.executeUpdate();
+            }
+            connection.commit();
+            result = true;
+        } catch (SQLException ex) {
+            try {
+                connection.rollback();
+            } catch (SQLException ignore) {
+            }
+            ex.printStackTrace();
+        } finally {
+            try {
+                connection.setAutoCommit(true);
+            } catch (SQLException ignore) {
             }
         }
         return result;
@@ -424,27 +610,12 @@ public class DatabaseManager {
         return currentUser;
     }
 
-    public List<User> getUsers() {
-        return users;
-    }
-
     public List<Project> getProjects() {
-        return projects;
+        return getProjectsForCurrentUser();
     }
 
     public List<Task> getUserTasks() {
         return userTasks;
-    }
-
-    public List<String> getProjectNames() {
-        return projectNames;
-    }
-
-    private void clearCache() {
-        projects.clear();
-        userTasks.clear();
-        users.clear();
-        currentUser = null;
     }
 
 }

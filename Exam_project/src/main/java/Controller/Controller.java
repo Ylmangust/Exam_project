@@ -13,8 +13,9 @@ import Model.databaseEntities.Task;
 import Model.databaseEntities.User;
 import Model.enums.PriorityLevel;
 import Model.enums.Role;
-import java.sql.Date;
+import Model.enums.Status;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  *
@@ -41,24 +42,36 @@ public class Controller {
         return user;
     }
 
-    public User getCurrentUser() {
-        return dataManager.getCurrentUser();
-    }
-
     public List<Project> getProjectsForCurrentUser() {
         return dataManager.getProjects();
+    }
+    
+    public List <Task> getTasksForProject(Project project){
+        return dataManager.getProjectTasks(project);
+    }
+    
+    public boolean changeStatus(int taskID, Status newStatus){
+        return dataManager.changeStatus(taskID, newStatus);
+    }
+    
+    public boolean createComment(int taskId, String message, LocalDateTime date){
+        return dataManager.createComments(taskId, message, date);
     }
 
     public List<Task> getTasksForCurrentUser() {
         return dataManager.getUserTasks();
     }
-
-    public List<User> getAllUsers() {
-        return dataManager.getUsers();
+    
+    public Task getTaskByID(int id){
+        return dataManager.getTaskByID(id);
     }
 
-    public List<String> getProjectsNames() {
-        return dataManager.getProjectNames();
+    public List<User> getAllUsers() {
+        return dataManager.readUsers();
+    }
+
+    public boolean addPoints(int userId, Integer points, int taskID){
+        return dataManager.addPointsForTask(userId, points, taskID);
     }
 
     public int createNewProject(String projectName, String description, LocalDate startDate, LocalDate endDate, List<User> executors) {

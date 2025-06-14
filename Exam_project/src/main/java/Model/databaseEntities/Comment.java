@@ -4,8 +4,9 @@
  */
 package Model.databaseEntities;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -15,10 +16,10 @@ import java.util.List;
 public class Comment {
     private User creator;
     private String message;
-    private Date createdAt;
+    private LocalDateTime createdAt;
     private List <Attachment> attachments = new ArrayList<>();
 
-    public Comment(User creator, String message, Date createdAt) {
+    public Comment(User creator, String message, LocalDateTime createdAt) {
         this.creator = creator;
         this.message = message;
         this.createdAt = createdAt;
@@ -32,7 +33,7 @@ public class Comment {
         return message;
     }
 
-    public Date getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
