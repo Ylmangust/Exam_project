@@ -4,35 +4,25 @@
  */
 package View;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.SwingConstants;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
+import java.time.format.*;
+import java.util.*;
+import java.util.Date;
+import javax.swing.*;
+import javax.swing.table.*;
 import Controller.Controller;
-import Model.StatisticsOperator;
-import Model.UserStats;
-import Model.databaseEntities.Comment;
-import Model.enums.PriorityLevel;
-import Model.databaseEntities.Project;
-import Model.enums.Role;
-import Model.enums.Status;
-import Model.databaseEntities.Task;
-import Model.databaseEntities.TaskHistory;
-import Model.databaseEntities.User;
+import Model.*;
+import Model.enums.*;
+import Model.databaseEntities.*;
+import java.awt.Dimension;
 import java.awt.event.MouseEvent;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.Arrays;
-import java.util.Map;
-import javax.swing.JTextField;
+import java.time.*;
+import java.util.stream.Collectors;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.gantt.*;
+import org.jfree.data.time.SimpleTimePeriod;
 
 /**
  *
@@ -41,18 +31,24 @@ import javax.swing.JTextField;
 public class GUI extends javax.swing.JFrame {
 
     private final Controller controller;
-    User currentUser;
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    DateTimeFormatter formatterWithTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    List<Task> taskListToShow;
-    Task currentTaskToShow;
-    String currentTasksTable = "userTasks";
+    private User currentUser;
+    private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private DateTimeFormatter formatterWithTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private List<ProjectTask> taskListToShow;
+    private ProjectTask currentTaskToShow;
+    private String currentTasksTable = "userTasks";
+    private final DefaultTableModel projectsTableModel;
 
     public GUI(Controller ctrl) {
         this.controller = ctrl;
+        projectsTableModel = new DefaultTableModel(new String[]{"Задача", "Проект", "Дедлайн"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         initComponents();
-        startGUI();
-
+        makeVisible(authorizationDialog);
     }
 
     /**
@@ -88,8 +84,10 @@ public class GUI extends javax.swing.JFrame {
         executorsTable = new javax.swing.JTable();
         reportsDialog = new javax.swing.JDialog();
         projectsScroll = new javax.swing.JScrollPane();
-        projectsTree = new javax.swing.JTree();
-        exportBtnPanel = new javax.swing.JPanel();
+        projectForReportList = new javax.swing.JList<>();
+        reportsBtnPanel = new javax.swing.JPanel();
+        showStatsBtn = new javax.swing.JButton();
+        showGantBtn = new javax.swing.JButton();
         exportBtn = new javax.swing.JButton();
         tasksDialog = new javax.swing.JDialog();
         filterPanel = new javax.swing.JPanel();
@@ -99,7 +97,7 @@ public class GUI extends javax.swing.JFrame {
         priorityFilterCombo = new javax.swing.JComboBox<>();
         createdFilterLbl = new javax.swing.JLabel();
         createdFilterCombo = new javax.swing.JComboBox<>();
-        createTaskBtn = new javax.swing.JButton();
+        applyFiltersBtn = new javax.swing.JButton();
         tasksScroll = new javax.swing.JScrollPane();
         tasksTable = new javax.swing.JTable();
         newTaskDialog = new javax.swing.JDialog();
@@ -141,6 +139,9 @@ public class GUI extends javax.swing.JFrame {
         startTaskBtn = new javax.swing.JButton();
         rateTaskExecutorBtn = new javax.swing.JButton();
         endTaskBtn = new javax.swing.JButton();
+        taskDescScroll = new javax.swing.JScrollPane();
+        taskDescriptionInfo = new javax.swing.JTextArea();
+        taskInfoLbl = new javax.swing.JLabel();
         taskCommentPanel = new javax.swing.JPanel();
         taskCommLabel = new javax.swing.JLabel();
         commentsScroll = new javax.swing.JScrollPane();
@@ -158,16 +159,21 @@ public class GUI extends javax.swing.JFrame {
         tableNameLbl = new javax.swing.JLabel();
         tableScroll = new javax.swing.JScrollPane();
         activeProjectsTable = new javax.swing.JTable();
+        endProjectPanel = new javax.swing.JPanel();
+        endProjectBtn = new javax.swing.JButton();
         mainMenuBar = new javax.swing.JMenuBar();
         menuOptions = new javax.swing.JMenu();
-        newProjectItem = new javax.swing.JMenuItem();
         myTasksItem = new javax.swing.JMenuItem();
+        exitMenuItem = new javax.swing.JMenuItem();
+        extendedAccessOptions = new javax.swing.JMenu();
+        newProjectItem = new javax.swing.JMenuItem();
+        createNewTaskItem = new javax.swing.JMenuItem();
         reportsItem = new javax.swing.JMenuItem();
         newUserItem = new javax.swing.JMenuItem();
-        exitMenuItem = new javax.swing.JMenuItem();
 
         authorizationDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         authorizationDialog.setTitle("Вход в систему");
+        authorizationDialog.setAlwaysOnTop(true);
         authorizationDialog.setModal(true);
         authorizationDialog.setResizable(false);
         authorizationDialog.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -373,26 +379,51 @@ public class GUI extends javax.swing.JFrame {
         reportsDialog.setTitle("Отчёты");
         reportsDialog.setModal(true);
 
-        javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Проекты");
-        projectsTree.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
-        projectsScroll.setViewportView(projectsTree);
+        projectsScroll.setViewportView(projectForReportList);
+
+        showStatsBtn.setText("Стастистика по участникам");
+        showStatsBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                showStatsBtnActionPerformed(evt);
+            }
+        });
+
+        showGantBtn.setText("График выполнения проекта");
+        showGantBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                showGantBtnActionPerformed(evt);
+            }
+        });
 
         exportBtn.setText("Экспортировать отчёт");
+        exportBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                exportBtnActionPerformed(evt);
+            }
+        });
 
-        javax.swing.GroupLayout exportBtnPanelLayout = new javax.swing.GroupLayout(exportBtnPanel);
-        exportBtnPanel.setLayout(exportBtnPanelLayout);
-        exportBtnPanelLayout.setHorizontalGroup(
-            exportBtnPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(exportBtnPanelLayout.createSequentialGroup()
-                .addGap(148, 148, 148)
-                .addComponent(exportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 191, javax.swing.GroupLayout.PREFERRED_SIZE)
+        javax.swing.GroupLayout reportsBtnPanelLayout = new javax.swing.GroupLayout(reportsBtnPanel);
+        reportsBtnPanel.setLayout(reportsBtnPanelLayout);
+        reportsBtnPanelLayout.setHorizontalGroup(
+            reportsBtnPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(reportsBtnPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(reportsBtnPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(showStatsBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(showGantBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 226, Short.MAX_VALUE)
+                    .addComponent(exportBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
-        exportBtnPanelLayout.setVerticalGroup(
-            exportBtnPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(exportBtnPanelLayout.createSequentialGroup()
-                .addComponent(exportBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 32, Short.MAX_VALUE)
-                .addContainerGap())
+        reportsBtnPanelLayout.setVerticalGroup(
+            reportsBtnPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, reportsBtnPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(showGantBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(39, 39, 39)
+                .addComponent(showStatsBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 39, Short.MAX_VALUE)
+                .addComponent(exportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(19, 19, 19))
         );
 
         javax.swing.GroupLayout reportsDialogLayout = new javax.swing.GroupLayout(reportsDialog.getContentPane());
@@ -400,22 +431,20 @@ public class GUI extends javax.swing.JFrame {
         reportsDialogLayout.setHorizontalGroup(
             reportsDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(reportsDialogLayout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(exportBtnPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addContainerGap())
-            .addGroup(reportsDialogLayout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addComponent(projectsScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 488, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(19, Short.MAX_VALUE))
+                .addGap(21, 21, 21)
+                .addComponent(projectsScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 209, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(26, 26, 26)
+                .addComponent(reportsBtnPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(15, Short.MAX_VALUE))
         );
         reportsDialogLayout.setVerticalGroup(
             reportsDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(reportsDialogLayout.createSequentialGroup()
-                .addGap(15, 15, 15)
-                .addComponent(projectsScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
-                .addComponent(exportBtnPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(reportsDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(projectsScroll)
+                    .addComponent(reportsBtnPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(29, Short.MAX_VALUE))
         );
 
         tasksDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -424,36 +453,21 @@ public class GUI extends javax.swing.JFrame {
         tasksDialog.setResizable(false);
 
         statusFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Все", "Новые", "В работе", "Завершенные", "Просроченные" }));
-        statusFilterCombo.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                statusFilterComboActionPerformed(evt);
-            }
-        });
 
         statusFilterLbl.setText("Фильтровать по статусам:");
 
         priorityFilterLbl.setText("Фильтровать по приоритету:");
 
         priorityFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Все", "Высокий", "Средний", "Низкий" }));
-        priorityFilterCombo.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                priorityFilterComboActionPerformed(evt);
-            }
-        });
 
         createdFilterLbl.setText("Сортировать по дате создания:");
 
         createdFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Сначала старые", "Сначала новые" }));
-        createdFilterCombo.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                createdFilterComboActionPerformed(evt);
-            }
-        });
 
-        createTaskBtn.setText("Создать задачу");
-        createTaskBtn.addActionListener(new java.awt.event.ActionListener() {
+        applyFiltersBtn.setText("Применить фильтры");
+        applyFiltersBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                createTaskBtnActionPerformed(evt);
+                applyFiltersBtnActionPerformed(evt);
             }
         });
 
@@ -465,21 +479,23 @@ public class GUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(filterPanelLayout.createSequentialGroup()
-                        .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(priorityFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, 173, Short.MAX_VALUE)
-                            .addComponent(statusFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(priorityFilterCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(statusFilterCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(filterPanelLayout.createSequentialGroup()
+                                .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(priorityFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, 173, Short.MAX_VALUE)
+                                    .addComponent(statusFilterLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addGroup(filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(priorityFilterCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(statusFilterCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(filterPanelLayout.createSequentialGroup()
+                                .addComponent(createdFilterLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 185, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(createdFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(filterPanelLayout.createSequentialGroup()
-                        .addComponent(createTaskBtn)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(filterPanelLayout.createSequentialGroup()
-                        .addComponent(createdFilterLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 185, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(createdFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addComponent(applyFiltersBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
         );
         filterPanelLayout.setVerticalGroup(
             filterPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -497,7 +513,7 @@ public class GUI extends javax.swing.JFrame {
                     .addComponent(createdFilterLbl)
                     .addComponent(createdFilterCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(createTaskBtn)
+                .addComponent(applyFiltersBtn)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -506,7 +522,7 @@ public class GUI extends javax.swing.JFrame {
 
             },
             new String [] {
-                "Задача", "Проект", "Статус"
+                "Задача", "Проект", "Дедлайн"
             }
         ) {
             boolean[] canEdit = new boolean [] {
@@ -659,28 +675,33 @@ public class GUI extends javax.swing.JFrame {
         );
 
         ganttDiagramDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        ganttDiagramDialog.setTitle("График выполнения проекта");
+        ganttDiagramDialog.setModal(true);
+        ganttDiagramDialog.setResizable(false);
 
         javax.swing.GroupLayout diagramPanelLayout = new javax.swing.GroupLayout(diagramPanel);
         diagramPanel.setLayout(diagramPanelLayout);
         diagramPanelLayout.setHorizontalGroup(
             diagramPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 629, Short.MAX_VALUE)
+            .addGap(0, 597, Short.MAX_VALUE)
         );
         diagramPanelLayout.setVerticalGroup(
             diagramPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 300, Short.MAX_VALUE)
+            .addGap(0, 404, Short.MAX_VALUE)
         );
 
         javax.swing.GroupLayout ganttDiagramDialogLayout = new javax.swing.GroupLayout(ganttDiagramDialog.getContentPane());
         ganttDiagramDialog.getContentPane().setLayout(ganttDiagramDialogLayout);
         ganttDiagramDialogLayout.setHorizontalGroup(
             ganttDiagramDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(diagramPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGap(0, 597, Short.MAX_VALUE)
+            .addGroup(ganttDiagramDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addComponent(diagramPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         ganttDiagramDialogLayout.setVerticalGroup(
             ganttDiagramDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(diagramPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGap(0, 404, Short.MAX_VALUE)
+            .addGroup(ganttDiagramDialogLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addComponent(diagramPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         executorsStatistics.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -844,36 +865,52 @@ public class GUI extends javax.swing.JFrame {
             }
         });
 
+        taskDescriptionInfo.setEditable(false);
+        taskDescriptionInfo.setColumns(20);
+        taskDescriptionInfo.setRows(5);
+        taskDescScroll.setViewportView(taskDescriptionInfo);
+
+        taskInfoLbl.setText("Описание задачи ");
+
         javax.swing.GroupLayout taskHistoryPanelLayout = new javax.swing.GroupLayout(taskHistoryPanel);
         taskHistoryPanel.setLayout(taskHistoryPanelLayout);
         taskHistoryPanelLayout.setHorizontalGroup(
             taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(taskHistoryPanelLayout.createSequentialGroup()
-                .addGroup(taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(taskHistoryPanelLayout.createSequentialGroup()
-                        .addGap(159, 159, 159)
-                        .addComponent(taskStoryLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(taskHistoryPanelLayout.createSequentialGroup()
-                        .addGap(19, 19, 19)
-                        .addGroup(taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(taskStoryScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 439, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(taskHistoryPanelLayout.createSequentialGroup()
-                                .addComponent(startTaskBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 202, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(endTaskBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addContainerGap())
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, taskHistoryPanelLayout.createSequentialGroup()
                 .addGap(0, 0, Short.MAX_VALUE)
                 .addComponent(rateTaskExecutorBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 253, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(97, 97, 97))
+            .addGroup(taskHistoryPanelLayout.createSequentialGroup()
+                .addGap(19, 19, 19)
+                .addGroup(taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(taskStoryScroll, javax.swing.GroupLayout.DEFAULT_SIZE, 439, Short.MAX_VALUE)
+                    .addGroup(taskHistoryPanelLayout.createSequentialGroup()
+                        .addComponent(startTaskBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 202, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(endTaskBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(taskDescScroll))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, taskHistoryPanelLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, taskHistoryPanelLayout.createSequentialGroup()
+                        .addComponent(taskStoryLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(161, 161, 161))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, taskHistoryPanelLayout.createSequentialGroup()
+                        .addComponent(taskInfoLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 123, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(160, 160, 160))))
         );
         taskHistoryPanelLayout.setVerticalGroup(
             taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(taskHistoryPanelLayout.createSequentialGroup()
-                .addGap(12, 12, 12)
-                .addComponent(taskStoryLabel)
+                .addGap(14, 14, 14)
+                .addComponent(taskInfoLbl)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(taskStoryScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 368, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(taskDescScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(taskStoryLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(taskStoryScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(20, 20, 20)
                 .addGroup(taskHistoryPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(endTaskBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 32, Short.MAX_VALUE)
@@ -1042,22 +1079,7 @@ public class GUI extends javax.swing.JFrame {
                 .addComponent(tableNameLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
-        activeProjectsTable.setModel(new javax.swing.table.DefaultTableModel(
-            new Object [][] {
-
-            },
-            new String [] {
-                "Название", "Статус", "Дедлайн"
-            }
-        ) {
-            boolean[] canEdit = new boolean [] {
-                false, false, false
-            };
-
-            public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return canEdit [columnIndex];
-            }
-        });
+        activeProjectsTable.setModel(projectsTableModel);
         activeProjectsTable.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 activeProjectsTableMouseClicked(evt);
@@ -1065,15 +1087,31 @@ public class GUI extends javax.swing.JFrame {
         });
         tableScroll.setViewportView(activeProjectsTable);
 
-        menuOptions.setText("Меню");
-
-        newProjectItem.setText("Новый проект");
-        newProjectItem.addActionListener(new java.awt.event.ActionListener() {
+        endProjectBtn.setText("Завершить проект");
+        endProjectBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                newProjectItemActionPerformed(evt);
+                endProjectBtnActionPerformed(evt);
             }
         });
-        menuOptions.add(newProjectItem);
+
+        javax.swing.GroupLayout endProjectPanelLayout = new javax.swing.GroupLayout(endProjectPanel);
+        endProjectPanel.setLayout(endProjectPanelLayout);
+        endProjectPanelLayout.setHorizontalGroup(
+            endProjectPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, endProjectPanelLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(endProjectBtn)
+                .addGap(171, 171, 171))
+        );
+        endProjectPanelLayout.setVerticalGroup(
+            endProjectPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(endProjectPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(endProjectBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 30, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        menuOptions.setText("Общее меню");
 
         myTasksItem.setText("Мои задачи");
         myTasksItem.addActionListener(new java.awt.event.ActionListener() {
@@ -1082,22 +1120,6 @@ public class GUI extends javax.swing.JFrame {
             }
         });
         menuOptions.add(myTasksItem);
-
-        reportsItem.setText("Отчеты");
-        reportsItem.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                reportsItemActionPerformed(evt);
-            }
-        });
-        menuOptions.add(reportsItem);
-
-        newUserItem.setText("Добавить нового пользователя");
-        newUserItem.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                newUserItemActionPerformed(evt);
-            }
-        });
-        menuOptions.add(newUserItem);
 
         exitMenuItem.setText("Выйти");
         exitMenuItem.addActionListener(new java.awt.event.ActionListener() {
@@ -1109,6 +1131,42 @@ public class GUI extends javax.swing.JFrame {
 
         mainMenuBar.add(menuOptions);
 
+        extendedAccessOptions.setText("Расширенный доступ");
+
+        newProjectItem.setText("Новый проект");
+        newProjectItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                newProjectItemActionPerformed(evt);
+            }
+        });
+        extendedAccessOptions.add(newProjectItem);
+
+        createNewTaskItem.setText("Новая задача");
+        createNewTaskItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                createNewTaskItemActionPerformed(evt);
+            }
+        });
+        extendedAccessOptions.add(createNewTaskItem);
+
+        reportsItem.setText("Отчеты");
+        reportsItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                reportsItemActionPerformed(evt);
+            }
+        });
+        extendedAccessOptions.add(reportsItem);
+
+        newUserItem.setText("Добавить нового пользователя");
+        newUserItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                newUserItemActionPerformed(evt);
+            }
+        });
+        extendedAccessOptions.add(newUserItem);
+
+        mainMenuBar.add(extendedAccessOptions);
+
         setJMenuBar(mainMenuBar);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1118,17 +1176,21 @@ public class GUI extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addGap(121, 121, 121)
                 .addComponent(lblPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+            .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(tableScroll, javax.swing.GroupLayout.DEFAULT_SIZE, 481, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(tableScroll, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 481, Short.MAX_VALUE)
+                    .addComponent(endProjectPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addComponent(lblPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(5, 5, 5)
-                .addComponent(tableScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 287, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(tableScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 251, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(endProjectPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
 
@@ -1147,21 +1209,11 @@ public class GUI extends javax.swing.JFrame {
                 makeVisible(this);
             } else {
                 JOptionPane.showMessageDialog(null, "Пользователь не найден или неправильно введен логин/пароль!", null, JOptionPane.ERROR_MESSAGE);
-                clearFields(fields);
             }
         } else {
             JOptionPane.showMessageDialog(null, "Необходимо заполнить оба поля!", null, JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_loginBtnActionPerformed
-
-    private void createTaskBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createTaskBtnActionPerformed
-        List<Project> projects = controller.getProjectsForCurrentUser();
-        projectCombo.removeAllItems();
-        for (Project project : projects) {
-            projectCombo.addItem(project);
-        }
-        makeVisible(newTaskDialog);
-    }//GEN-LAST:event_createTaskBtnActionPerformed
 
     private void newProjectItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newProjectItemActionPerformed
         updateExecutorsAvaliableTable();
@@ -1185,10 +1237,14 @@ public class GUI extends javax.swing.JFrame {
     }//GEN-LAST:event_exitMenuItemActionPerformed
 
     private void createNewTaskBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createNewTaskBtnActionPerformed
-        if (!taskNameField.getText().trim().isEmpty() && !taskDeadline.getText().trim().isEmpty() && !taskDescriptionText.getText().trim().isEmpty()) {
+        Project project = (Project) projectCombo.getSelectedItem();
+        if (!taskNameField.getText().trim().isEmpty()
+                && !taskDeadline.getText().trim().isEmpty()
+                && !taskDescriptionText.getText().trim().isEmpty()
+                && project.getStatus() != Status.DONE) {
             LocalDate newTaskDeadline = null;
             LocalDate today = LocalDate.now();
-            LocalDate projectEndDate = ((Project) projectCombo.getSelectedItem()).getEndDate();
+            LocalDate projectEndDate = project.getEndDate();
             try {
                 newTaskDeadline = LocalDate.parse(taskDeadline.getText().trim(), formatter);
                 if (newTaskDeadline.isBefore(today)) {
@@ -1206,7 +1262,7 @@ public class GUI extends javax.swing.JFrame {
                         JOptionPane.showMessageDialog(null, "Проверьте задачу на совпадение названия и дедлайна с уже существующими!", null, JOptionPane.WARNING_MESSAGE);
                     } else {
                         JOptionPane.showMessageDialog(null, "Задача  успешно создана!", null, JOptionPane.INFORMATION_MESSAGE);
-                        updateTasksTable(controller.getTasksForCurrentUser());
+                        updateProjectsTable();
                         newTaskDialog.dispose();
                         List<JTextField> fields = new ArrayList<>(Arrays.asList(taskNameField, taskDeadline));
                         clearFields(fields);
@@ -1220,52 +1276,6 @@ public class GUI extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Необходимо заполнить все поля!", null, JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_createNewTaskBtnActionPerformed
-
-    private void statusFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_statusFilterComboActionPerformed
-        String selected = (String) statusFilterCombo.getSelectedItem();
-        List<Task> sortedList = new ArrayList<>();
-        for (Task task : taskListToShow) {
-            if ("Все".equals(selected)) {
-                sortedList.add(task);
-            } else if (selected.equals("Новые") && task.getStatus() == Status.NEW) {
-                sortedList.add(task);
-            } else if (selected.equals("В работе") && task.getStatus() == Status.IN_PROGRESS) {
-                sortedList.add(task);
-            } else if (selected.equals("Завершенные") && task.getStatus() == Status.DONE) {
-                sortedList.add(task);
-            } else if (selected.equals("Просроченные") && task.getStatus() == Status.OVERDUE) {
-                sortedList.add(task);
-            }
-        }
-        updateTasksTable(sortedList);
-    }//GEN-LAST:event_statusFilterComboActionPerformed
-
-    private void priorityFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_priorityFilterComboActionPerformed
-        String selected = (String) priorityFilterCombo.getSelectedItem();
-        List<Task> sortedList = new ArrayList<>();
-        for (Task task : taskListToShow) {
-            if ("Все".equals(selected)) {
-                sortedList.add(task);
-            } else if (selected.equals("Высокий") && task.getPriority() == PriorityLevel.HIGH) {
-                sortedList.add(task);
-            } else if (selected.equals("Средний") && task.getPriority() == PriorityLevel.MEDIUM) {
-                sortedList.add(task);
-            } else if (selected.equals("Низкий") && task.getPriority() == PriorityLevel.LOW) {
-                sortedList.add(task);
-            }
-        }
-        updateTasksTable(sortedList);
-    }//GEN-LAST:event_priorityFilterComboActionPerformed
-
-    private void createdFilterComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createdFilterComboActionPerformed
-        String selected = (String) createdFilterCombo.getSelectedItem();
-        if ("Сначала старые".equals(selected)) {
-            taskListToShow.sort(Comparator.comparing(task -> task.getCreatedAt()));
-        } else if ("Сначала новые".equals(selected)) {
-            taskListToShow.sort(Comparator.comparing((Task task) -> task.getCreatedAt()).reversed());
-        }
-        updateTasksTable(taskListToShow);
-    }//GEN-LAST:event_createdFilterComboActionPerformed
 
     private void projectComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_projectComboActionPerformed
         Project selected = (Project) projectCombo.getSelectedItem();
@@ -1333,7 +1343,6 @@ public class GUI extends javax.swing.JFrame {
             boolean transactionResult = controller.createNewUser(fullName, username, role);
             if (transactionResult) {
                 JOptionPane.showMessageDialog(null, "Пользователь успешно добавлен!", null, JOptionPane.INFORMATION_MESSAGE);
-                updateExecutorsAvaliableTable();
                 fullNameField.setText("");
                 usernameField.setText("");
                 newUserDialog.dispose();
@@ -1348,7 +1357,7 @@ public class GUI extends javax.swing.JFrame {
     private void tasksTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_tasksTableMouseClicked
         if (evt.getClickCount() == 2 && evt.getButton() == MouseEvent.BUTTON1) {
             int row = tasksTable.getSelectedRow();
-            Task taskFromTable = (Task) tasksTable.getValueAt(row, 0);
+            ProjectTask taskFromTable = (ProjectTask) tasksTable.getValueAt(row, 0);
             currentTaskToShow = controller.getTaskByID(taskFromTable.getTaskID());
             updateTaskDetails();
             makeVisible(taskDetailsDialog);
@@ -1374,6 +1383,7 @@ public class GUI extends javax.swing.JFrame {
         boolean result = controller.changeStatus(currentTaskToShow.getTaskID(), Status.IN_PROGRESS);
         if (result) {
             currentTaskToShow = controller.getTaskByID(currentTaskToShow.getTaskID());
+            taskListToShow = controller.getTasksForCurrentUser();
             updateTaskDetails();
             updateTasksTable(taskListToShow);
             JOptionPane.showMessageDialog(null, "Вы приступили к выполнению задачи!", null, JOptionPane.INFORMATION_MESSAGE);
@@ -1387,6 +1397,7 @@ public class GUI extends javax.swing.JFrame {
             if (result) {
                 currentTaskToShow = controller.getTaskByID(currentTaskToShow.getTaskID());
                 updateTaskDetails();
+                taskListToShow = controller.getTasksForCurrentUser();
                 updateTasksTable(taskListToShow);
             }
         }
@@ -1410,52 +1421,154 @@ public class GUI extends javax.swing.JFrame {
 
     private void saveRateBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveRateBtnActionPerformed
         Integer rate = (Integer) rateComboBox.getSelectedItem();
-        boolean successResult = controller.addPoints(currentUser.getUserId(), rate, currentTaskToShow.getTaskID());
+        boolean successResult = controller.addPoints(currentTaskToShow.getExecutor().getUserId(), rate, currentTaskToShow.getTaskID());
         if (successResult) {
             JOptionPane.showMessageDialog(null, "Баллы успешно начислены!", null, JOptionPane.INFORMATION_MESSAGE);
             currentTaskToShow = controller.getTaskByID(currentTaskToShow.getTaskID());
             updateTaskDetails();
+            updateProjectsTable();
             setRateDialog.dispose();
         }
     }//GEN-LAST:event_saveRateBtnActionPerformed
 
     private void reportsItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_reportsItemActionPerformed
-        updateStatsTable();
-        makeVisible(executorsStatistics);
+        List<Project> projects = controller.getProjectsForCurrentUser();
+        DefaultListModel<Project> jlistModel = new DefaultListModel<>();
+        for (Project p : projects) {
+            jlistModel.addElement(p);
+        }
+        projectForReportList.setModel(jlistModel);
+        makeVisible(reportsDialog);
     }//GEN-LAST:event_reportsItemActionPerformed
 
-    private void updateProjectsTable() {
-        DefaultTableModel model = (DefaultTableModel) activeProjectsTable.getModel();
-        model.setRowCount(0);
-        List<Project> projects = controller.getProjectsForCurrentUser();
-        Object[][] data = new Object[projects.size()][3];
-        for (int i = 0; i < projects.size(); i++) {
-            Project project = projects.get(i);
-            data[i][0] = project;
-            data[i][1] = project.getStatus();
-            data[i][2] = project.getEndDate();
+    private void showGantBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showGantBtnActionPerformed
+        Project selectedProject = projectForReportList.getSelectedValue();
+        if (selectedProject != null) {
+            drawGanttDiagramm(selectedProject);
+            makeVisible(ganttDiagramDialog);
+        } else {
+            JOptionPane.showMessageDialog(null, "Необходимо выбрать проект из списка!", null, JOptionPane.WARNING_MESSAGE);
         }
-        String[] titles = {"Название", "Статус", "Дедлайн"};
-        activeProjectsTable.setModel(new DefaultTableModel(data, titles) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        });
+    }//GEN-LAST:event_showGantBtnActionPerformed
 
+    private void showStatsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showStatsBtnActionPerformed
+        Project selectedProject = projectForReportList.getSelectedValue();
+        if (selectedProject != null) {
+            updateStatsTable(selectedProject);
+            makeVisible(executorsStatistics);
+        } else {
+            JOptionPane.showMessageDialog(null, "Необходимо выбрать проект из списка!", null, JOptionPane.WARNING_MESSAGE);
+        }
+    }//GEN-LAST:event_showStatsBtnActionPerformed
+
+    private void endProjectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_endProjectBtnActionPerformed
+        int row = activeProjectsTable.getSelectedRow();
+        if (row != -1) {
+            Project selectedProject = (Project) activeProjectsTable.getValueAt(row, 0);
+            if (selectedProject.getCreator().getUserId() == currentUser.getUserId()) {
+                if (allTasksCompleted(selectedProject)) {
+                    boolean projectEnded = controller.endProject(selectedProject.getProjectID());
+                    if (projectEnded) {
+                        JOptionPane.showMessageDialog(null, "Проект успешно завершен!", null, JOptionPane.INFORMATION_MESSAGE);
+                        updateProjectsTable();
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Не удалось завершить проект!", null, JOptionPane.ERROR_MESSAGE);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "Нельзя завершить проект! Не все задачи выполнены!", null, JOptionPane.WARNING_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Нельзя завершить проект! У вас нет прав!", null, JOptionPane.WARNING_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Необходимо выбрать проект!", null, JOptionPane.WARNING_MESSAGE);
+        }
+    }//GEN-LAST:event_endProjectBtnActionPerformed
+
+    private void exportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exportBtnActionPerformed
+        Project selectedProject = projectForReportList.getSelectedValue();;
+        if (selectedProject != null) {
+            JFileChooser fileChooser = new JFileChooser();
+            FileNameExtensionFilter filter = new FileNameExtensionFilter("Excel file(*.xlsx)", "xlsx");
+            fileChooser.setFileFilter(filter);
+            String path = null;
+            int ret = fileChooser.showSaveDialog(null);
+            if (ret == JFileChooser.APPROVE_OPTION) {
+                path = fileChooser.getSelectedFile().getAbsolutePath();
+            }
+            if (path != null) {
+                List<User> users = controller.getAllUsers();
+                List<ProjectTask> projectTasks = controller.getTasksForProject(selectedProject);
+                Map<User, UserStats> stats = StatisticsOperator.getUserStats(users, projectTasks);
+                ExcelOperator.exportReport(path, stats);
+            }
+        }
+    }//GEN-LAST:event_exportBtnActionPerformed
+
+    private void createNewTaskItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_createNewTaskItemActionPerformed
+        List<Project> projects = controller.getProjectsForCurrentUser();
+        projectCombo.removeAllItems();
+        for (Project project : projects) {
+            if (project.getStatus() != Status.DONE) {
+                projectCombo.addItem(project);
+            }
+        }
+        makeVisible(newTaskDialog);
+    }//GEN-LAST:event_createNewTaskItemActionPerformed
+
+    private void applyFiltersBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_applyFiltersBtnActionPerformed
+        String createdOrder = (String) createdFilterCombo.getSelectedItem();
+        String status = (String) statusFilterCombo.getSelectedItem();
+        String priority = (String) priorityFilterCombo.getSelectedItem();
+        List<ProjectTask> filtered = taskListToShow.stream()
+                .filter(task -> status.equals("Все")
+                || (status.equals("Новые") && task.getStatus() == Status.NEW)
+                || (status.equals("В работе") && task.getStatus() == Status.IN_PROGRESS)
+                || (status.equals("Завершенные") && task.getStatus() == Status.DONE)
+                || (status.equals("Просроченные") && task.getStatus() == Status.OVERDUE))
+                .filter(task -> priority.equals("Все")
+                || (priority.equals("Высокий") && task.getPriority() == PriorityLevel.HIGH)
+                || (priority.equals("Средний") && task.getPriority() == PriorityLevel.MEDIUM)
+                || (priority.equals("Низкий") && task.getPriority() == PriorityLevel.LOW))
+                .sorted(createdOrder.equals("Сначала старые")
+                        ? Comparator.comparing(ProjectTask::getCreatedAt) : Comparator.comparing(ProjectTask::getCreatedAt).reversed())
+                .collect(Collectors.toList());
+
+        updateTasksTable(filtered);
+    }//GEN-LAST:event_applyFiltersBtnActionPerformed
+
+    private boolean allTasksCompleted(Project project) {
+        List<ProjectTask> tasks = project.getTasks();
+        boolean allCompleted = true;
+        for (ProjectTask task : tasks) {
+            if (task.getStatus() != Status.DONE) {
+                allCompleted = false;
+            }
+        }
+        return allCompleted;
+    }
+
+    private void updateProjectsTable() {
+        projectsTableModel.setRowCount(0);
+        List<Project> projects = controller.getProjectsForCurrentUser();
+        for (Project project : projects) {
+            projectsTableModel.addRow(new Object[]{project, project.getStatus(), project.getEndDate()});
+        }
         ColorRenderer renderer = new ColorRenderer();
-        for (int i = 0; i < activeProjectsTable.getColumnCount(); i++) {
+        for (int i = 0;
+                i < activeProjectsTable.getColumnCount();
+                i++) {
             activeProjectsTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
             renderer.setHorizontalAlignment(SwingConstants.CENTER);
         }
     }
 
-    private void updateTasksTable(List<Task> tasks) {
+    private void updateTasksTable(List<ProjectTask> tasks) {
         DefaultTableModel model = (DefaultTableModel) tasksTable.getModel();
         model.setRowCount(0);
         Object[][] data = new Object[tasks.size()][3];
         for (int i = 0; i < tasks.size(); i++) {
-            Task task = tasks.get(i);
+            ProjectTask task = tasks.get(i);
             data[i][0] = task;
             if (currentTasksTable.equals("projectTasks")) {
                 data[i][1] = task.getExecutor();
@@ -1503,6 +1616,11 @@ public class GUI extends javax.swing.JFrame {
         commentsArea.setText(sb.toString());
         commentsArea.setCaretPosition(0);
 
+        StringBuilder sbDesc = new StringBuilder();
+        sbDesc.append(currentTaskToShow.getDescription());
+        taskDescriptionInfo.setText(sbDesc.toString());
+        taskDescriptionInfo.setCaretPosition(0);
+
         DefaultTableModel model = (DefaultTableModel) taskHistoryTable.getModel();
         List<TaskHistory> taskHistory = currentTaskToShow.getHistory();
         model.setRowCount(0);
@@ -1528,12 +1646,12 @@ public class GUI extends javax.swing.JFrame {
         }
     }
 
-    private void updateStatsTable() {
+    private Map<User, UserStats> updateStatsTable(Project project) {
         DefaultTableModel model = (DefaultTableModel) statisticsTable.getModel();
         model.setRowCount(0);
         List<User> users = controller.getAllUsers();
-        List<Project> projects = controller.getProjectsForCurrentUser();
-        Map<User, UserStats> stats = StatisticsOperator.getUserStats(users, projects);
+        List<ProjectTask> projectTasks = controller.getTasksForProject(project);
+        Map<User, UserStats> stats = StatisticsOperator.getUserStats(users, projectTasks);
         Object[][] data = new Object[users.size()][4];
         int i = 0;
         for (Map.Entry<User, UserStats> entry : stats.entrySet()) {
@@ -1545,7 +1663,7 @@ public class GUI extends javax.swing.JFrame {
             data[i][3] = user.getRate();
             i++;
         }
-        String[] titles = {"Пользователь", "Просроченные задачи", "Выполненные задачи", "Баллы"};
+        String[] titles = {"Пользователь", "Просроченные задачи", "Выполненные задачи", "Общий балл"};
         statisticsTable.setModel(new DefaultTableModel(data, titles) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -1558,6 +1676,7 @@ public class GUI extends javax.swing.JFrame {
         for (int j = 0; j < statisticsTable.getColumnCount(); j++) {
             statisticsTable.getColumnModel().getColumn(j).setCellRenderer(centerRenderer);
         }
+        return stats;
     }
 
     private void updateExecutorsAvaliableTable() {
@@ -1593,13 +1712,13 @@ public class GUI extends javax.swing.JFrame {
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         executorsTable.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
+        executorsTable.getColumnModel().getColumn(0).setPreferredWidth(5);
     }
 
     private void setUpUserAccess(Role role) {
-        newProjectItem.setEnabled(role != Role.EXECUTOR);
-        reportsItem.setEnabled(role != Role.EXECUTOR);
+        extendedAccessOptions.setEnabled(role != Role.EXECUTOR);
         newUserItem.setEnabled(role == Role.ADMIN);
-        createTaskBtn.setEnabled(role != Role.EXECUTOR);
+        endProjectBtn.setEnabled(role != Role.EXECUTOR);
     }
 
     private void clearFields(List<JTextField> fields) {
@@ -1619,28 +1738,41 @@ public class GUI extends javax.swing.JFrame {
         frame.setVisible(true);
     }
 
-    private void drawGanttDiagramm() {
-
-    }
-
-    private void startGUI() {
-        authorizationDialog.pack();
-        authorizationDialog.setLocationRelativeTo(null);
-        authorizationDialog.setVisible(true);
-
+    private void drawGanttDiagramm(Project project) {
+        TaskSeries projectToShow = new TaskSeries(project.getProjectName());
+        List<ProjectTask> tasks = controller.getTasksForProject(project);
+        for (ProjectTask task : tasks) {
+            Date start = Date.from(task.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant());
+            Date end = Date.from(task.getDeadline().atStartOfDay(ZoneId.systemDefault()).toInstant());
+            String taskName = task.getName();
+            projectToShow.add(new Task(taskName, new SimpleTimePeriod(start, end)));
+        }
+        TaskSeriesCollection dataset = new TaskSeriesCollection();
+        dataset.add(projectToShow);
+        JFreeChart chart = ChartFactory.createGanttChart(
+                "График выполнения проекта",
+                "Задачи",
+                "Сроки выполнения",
+                dataset
+        );
+        ChartPanel ganttPanel = new ChartPanel(chart);
+        ganttPanel.setPreferredSize(new Dimension(597, 404));
+        diagramPanel.setLayout(new java.awt.BorderLayout());
+        diagramPanel.add(ganttPanel, java.awt.BorderLayout.CENTER);
     }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTable activeProjectsTable;
     private javax.swing.JButton addAttachmentBtn;
+    private javax.swing.JButton applyFiltersBtn;
     private javax.swing.JDialog authorizationDialog;
     private javax.swing.JPanel authorizationPanel;
     private javax.swing.JTextArea commentsArea;
     private javax.swing.JScrollPane commentsScroll;
     private javax.swing.JButton createNewTaskBtn;
+    private javax.swing.JMenuItem createNewTaskItem;
     private javax.swing.JButton createProjectBtn;
-    private javax.swing.JButton createTaskBtn;
     private javax.swing.JButton createUserBtn;
     private javax.swing.JComboBox<String> createdFilterCombo;
     private javax.swing.JLabel createdFilterLbl;
@@ -1648,7 +1780,9 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JScrollPane descriptionScroll;
     private javax.swing.JPanel diagramPanel;
     private javax.swing.JLabel endDateLbl;
+    private javax.swing.JButton endProjectBtn;
     private javax.swing.JTextField endProjectDate;
+    private javax.swing.JPanel endProjectPanel;
     private javax.swing.JButton endTaskBtn;
     private javax.swing.JComboBox<User> executorCombo;
     private javax.swing.JLabel executorLbl;
@@ -1657,7 +1791,7 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JTable executorsTable;
     private javax.swing.JMenuItem exitMenuItem;
     private javax.swing.JButton exportBtn;
-    private javax.swing.JPanel exportBtnPanel;
+    private javax.swing.JMenu extendedAccessOptions;
     private javax.swing.JPanel filterPanel;
     private javax.swing.JTextField fullNameField;
     private javax.swing.JLabel fullNameLbl;
@@ -1688,15 +1822,16 @@ public class GUI extends javax.swing.JFrame {
     > projectCombo;
     private javax.swing.JLabel projectDescriptionLbl;
     private javax.swing.JTextArea projectDescriptionText;
+    private javax.swing.JList<Project> projectForReportList;
     private javax.swing.JPanel projectInfoPanel;
     private javax.swing.JLabel projectLbl;
     private javax.swing.JTextField projectNameField;
     private javax.swing.JLabel projectNameLbl;
     private javax.swing.JScrollPane projectsScroll;
-    private javax.swing.JTree projectsTree;
     private javax.swing.JComboBox<Integer> rateComboBox;
     private javax.swing.JLabel rateLabel;
     private javax.swing.JButton rateTaskExecutorBtn;
+    private javax.swing.JPanel reportsBtnPanel;
     private javax.swing.JDialog reportsDialog;
     private javax.swing.JMenuItem reportsItem;
     private javax.swing.JComboBox<Role> roleComboBox;
@@ -1705,6 +1840,8 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JButton sendCommentBtn;
     private javax.swing.JDialog setRateDialog;
     private javax.swing.JPanel setRatePanel;
+    private javax.swing.JButton showGantBtn;
+    private javax.swing.JButton showStatsBtn;
     private javax.swing.JLabel startDateLbl;
     private javax.swing.JTextField startProjectDate;
     private javax.swing.JButton startTaskBtn;
@@ -1717,12 +1854,15 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JLabel taskCommLabel;
     private javax.swing.JPanel taskCommentPanel;
     private javax.swing.JTextField taskDeadline;
+    private javax.swing.JScrollPane taskDescScroll;
+    private javax.swing.JTextArea taskDescriptionInfo;
     private javax.swing.JLabel taskDescriptionLbl;
     private javax.swing.JTextArea taskDescriptionText;
     private javax.swing.JSplitPane taskDetailSplit;
     private javax.swing.JDialog taskDetailsDialog;
     private javax.swing.JPanel taskHistoryPanel;
     private javax.swing.JTable taskHistoryTable;
+    private javax.swing.JLabel taskInfoLbl;
     private javax.swing.JPanel taskInfoPanel;
     private javax.swing.JTextField taskNameField;
     private javax.swing.JLabel taskNameLbl;

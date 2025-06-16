@@ -1,0 +1,77 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
+package Model;
+
+import Model.databaseEntities.User;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Map;
+import javax.swing.JOptionPane;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+/**
+ *
+ * @author Регина
+ */
+public class ExcelOperator {
+
+    public static void exportReport(String path, Map<User, UserStats> stats) {
+        String[] colNames = {"Пользователь", "Выполненные задачи", "Просроченные задачи", "Общий балл"};
+        int columns = colNames.length;
+
+        if (!path.endsWith(".xlsx")) {
+            path = path + ".xlsx";
+        }
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Статистика по участникам");
+
+        CellStyle style = workbook.createCellStyle();
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        Row header1 = sheet.createRow(0);
+        for (int i = 0; i < columns; i++) {
+            Cell cell = header1.createCell(i);
+            cell.setCellValue(colNames[i]);
+            cell.setCellStyle(style);
+        }
+
+        int count = 1;
+        for (Map.Entry<User, UserStats> entry : stats.entrySet()) {
+            User user = entry.getKey();
+            UserStats userStats = entry.getValue();
+            Row row = sheet.createRow(count);
+            row.createCell(0).setCellValue(user.getFullName());
+            row.createCell(1).setCellValue(userStats.getCompletedCount());
+            row.createCell(2).setCellValue(userStats.getOverdueCount());
+            row.createCell(3).setCellValue(user.getRate());
+            count++;
+        }
+        
+        for (int i = 0; i < columns; i++){
+            sheet.autoSizeColumn(i);
+        }
+        
+        try {
+            FileOutputStream out = new FileOutputStream(new File(path));
+            workbook.write(out);
+            JOptionPane.showMessageDialog(null, "Отчет успешно экспортирован!\nРасположение:  " + path, null, JOptionPane.INFORMATION_MESSAGE);
+            workbook.close();
+        } catch (FileNotFoundException ex) {
+            ex.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}

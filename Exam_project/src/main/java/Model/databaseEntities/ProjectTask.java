@@ -15,28 +15,25 @@ import java.util.List;
  *
  * @author Регина
  */
-public class Task {
+public class ProjectTask {
 
     private int taskID;
     private String name;
     private String description;
-    private User creator;
     private User executor;
     private PriorityLevel priority;
     private Status status;
     private LocalDateTime createdAt;
     private LocalDate deadline;
-    private LocalDateTime completedAt;
     private List<Comment> comments = new ArrayList<>();
     private List<TaskHistory> history = new ArrayList<>();
-    private Project project;
+    private String projectName;
     private boolean isRated;
 
-    public Task(int id, String name, String description, User creator, User executor, PriorityLevel priority, Status status, LocalDateTime createdAt, LocalDate deadline, boolean isRated) {
+    public ProjectTask(int id, String name, String description, User executor, PriorityLevel priority, Status status, LocalDateTime createdAt, LocalDate deadline, boolean isRated) {
         this.taskID = id;
         this.name = name;
         this.description = description;
-        this.creator = creator;
         this.executor = executor;
         this.priority = priority;
         this.status = status;
@@ -45,12 +42,12 @@ public class Task {
         this.isRated = isRated;
     }
 
-    public Project getProject() {
-        return project;
+    public String getProject() {
+        return projectName;
     }
 
-    public void setProject(Project project) {
-        this.project = project;
+    public void setProject(String project) {
+        this.projectName = project;
     }
 
     public void setComments(List<Comment> comments) {
@@ -73,9 +70,6 @@ public class Task {
         return description;
     }
 
-    public User getCreator() {
-        return creator;
-    }
 
     public User getExecutor() {
         return executor;
@@ -97,10 +91,6 @@ public class Task {
         return deadline;
     }
 
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-
     public int getTaskID() {
         return taskID;
     }
@@ -115,10 +105,6 @@ public class Task {
 
     public void addComment(Comment comment) {
         comments.add(comment);
-    }
-
-    public void setCompletedAt(LocalDateTime completedAt) {
-        this.completedAt = completedAt;
     }
 
     public List<Comment> getComments() {

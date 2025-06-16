@@ -19,7 +19,7 @@ public class Project {
     private String description;
     private User creator;
     private List<User> executors;
-    private List<Task> tasks;
+    private List<ProjectTask> tasks;
     private Status status;
     private LocalDate startDate;
     private LocalDate endDate;
@@ -38,7 +38,7 @@ public class Project {
         this.executors = executors;
     }
 
-    public void setTasks(List<Task> tasks) {
+    public void setTasks(List<ProjectTask> tasks) {
         this.tasks = tasks;
     }
 
@@ -70,7 +70,7 @@ public class Project {
         return endDate;
     }
 
-    public List<Task> getTasks() {
+    public List<ProjectTask> getTasks() {
         return tasks;
     }
 

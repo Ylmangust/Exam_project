@@ -9,7 +9,7 @@ import java.util.List;
 import javax.swing.JOptionPane;
 import Model.DatabaseManager;
 import Model.databaseEntities.Project;
-import Model.databaseEntities.Task;
+import Model.databaseEntities.ProjectTask;
 import Model.databaseEntities.User;
 import Model.enums.PriorityLevel;
 import Model.enums.Role;
@@ -43,10 +43,10 @@ public class Controller {
     }
 
     public List<Project> getProjectsForCurrentUser() {
-        return dataManager.getProjects();
+        return dataManager.getProjectsForCurrentUser();
     }
     
-    public List <Task> getTasksForProject(Project project){
+    public List <ProjectTask> getTasksForProject(Project project){
         return dataManager.getProjectTasks(project);
     }
     
@@ -58,11 +58,11 @@ public class Controller {
         return dataManager.createComments(taskId, message, date);
     }
 
-    public List<Task> getTasksForCurrentUser() {
-        return dataManager.getUserTasks();
+    public List<ProjectTask> getTasksForCurrentUser() {
+        return dataManager.getTasksForCurrentUser();
     }
     
-    public Task getTaskByID(int id){
+    public ProjectTask getTaskByID(int id){
         return dataManager.getTaskByID(id);
     }
 
@@ -84,5 +84,9 @@ public class Controller {
     
     public boolean createNewTask(String name, String description, Project project, User executor, PriorityLevel priority, LocalDate deadline){
         return dataManager.createTask(name, description, project, executor, priority, deadline);
+    }
+    
+    public boolean endProject(int projectId){
+        return dataManager.endProject(projectId);
     }
 }

@@ -7,7 +7,7 @@ package Model;
 import Model.databaseEntities.Comment;
 import Model.databaseEntities.Project;
 import Model.databaseEntities.User;
-import Model.databaseEntities.Task;
+import Model.databaseEntities.ProjectTask;
 import Model.databaseEntities.TaskHistory;
 import Model.enums.Role;
 import Model.enums.Status;
@@ -25,9 +25,13 @@ import static Model.enums.Role.ADMIN;
 import static Model.enums.Role.EXECUTOR;
 import static Model.enums.Role.MANAGER;
 import java.security.SecureRandom;
+import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.Timer;
+import java.util.TimerTask;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -40,21 +44,29 @@ public class DatabaseManager {
     private String url = "jdbc:postgresql://aws-0-eu-north-1.pooler.supabase.com:5432/postgres";
     private Connection connection;
     User currentUser;
-    private List<Task> userTasks = new ArrayList<>();
+    Timer timer;
 
     public DatabaseManager() {
         try {
             connection = DriverManager.getConnection(url, user, password);
-            if (connection != null) {
-
+            if (connection == null) {
+                connection.close();
+                System.exit(0);
             }
         } catch (SQLException e) {
             System.out.println("Connection error: " + e.getMessage());
+            try {
+                connection.close();
+            } catch (SQLException ex) {
+            }
             System.exit(0);
         }
     }
 
     public User autorization(String username, String password) {
+        if (timer != null) {
+            timer.cancel();
+        }
         String query = "SELECT * FROM users where username = ? and password = ?";
         PreparedStatement statement = null;
         try {
@@ -70,6 +82,7 @@ public class DatabaseManager {
                 int rate = resultSet.getInt("rate");
                 currentUser = new User(id, username, password, name, role, rate);
                 getProjectsForCurrentUser();
+                startDeadlineTimer(connection);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -106,9 +119,7 @@ public class DatabaseManager {
     }
 
     public List<Project> getProjectsForCurrentUser() {
-        if (!userTasks.isEmpty()) {
-            userTasks.clear();
-        }
+
         List<Project> projects = new ArrayList<>();
         String projectsQuery = buildQueryByRole();
         try (PreparedStatement projectsStmt = connection.prepareStatement(projectsQuery)) {
@@ -145,15 +156,13 @@ public class DatabaseManager {
         return projects;
     }
 
-    public List<Task> getProjectTasks(Project project) {
-        List<Task> tasks = new ArrayList<>();
+    public List<ProjectTask> getProjectTasks(Project project) {
+        List<ProjectTask> tasks = new ArrayList<>();
         String taskQuery = "SELECT * FROM tasks WHERE project_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(taskQuery)) {
             statement.setInt(1, project.getProjectID());
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
-                int creatorId = resultSet.getInt("creator_id");
-                User creator = getCreatorByID(creatorId, connection);
                 String priorityStr = resultSet.getString("priority");
                 int executorId = resultSet.getInt("executor_id");
                 User executor = getTaskExecutor(executorId, connection);
@@ -161,10 +170,9 @@ public class DatabaseManager {
                 String statusStr = resultSet.getString("status");
                 Status status = Status.valueOf(statusStr);
                 boolean isRated = resultSet.getBoolean("is_rated");
-                Task task = new Task(resultSet.getInt("task_id"),
+                ProjectTask task = new ProjectTask(resultSet.getInt("task_id"),
                         resultSet.getString("task_title"),
                         resultSet.getString("task_description"),
-                        creator,
                         executor,
                         priority,
                         status,
@@ -172,15 +180,7 @@ public class DatabaseManager {
                         resultSet.getDate("deadline").toLocalDate(),
                         isRated
                 );
-                if (resultSet.getDate("completed_at") != null) {
-                    task.setCompletedAt(resultSet.getTimestamp("completed_at").toLocalDateTime());
-                }
-                task.setProject(project);
-                getTaskHistory(task);
-                getComments(task);
-                if (task.getExecutor().getUserId() == currentUser.getUserId()) {
-                    userTasks.add(task);
-                }
+                project.setTasks(tasks);
                 tasks.add(task);
             }
         } catch (SQLException ex) {
@@ -189,15 +189,13 @@ public class DatabaseManager {
         return tasks;
     }
 
-    public Task getTaskByID(int taskID) {
-        Task task = null;
+    public ProjectTask getTaskByID(int taskID) {
+        ProjectTask task = null;
         String taskQuery = "SELECT * FROM tasks WHERE task_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(taskQuery)) {
             statement.setInt(1, taskID);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
-                int creatorId = resultSet.getInt("creator_id");
-                User creator = getCreatorByID(creatorId, connection);
                 String priorityStr = resultSet.getString("priority");
                 int executorId = resultSet.getInt("executor_id");
                 User executor = getTaskExecutor(executorId, connection);
@@ -205,10 +203,9 @@ public class DatabaseManager {
                 String statusStr = resultSet.getString("status");
                 Status status = Status.valueOf(statusStr);
                 boolean isRated = resultSet.getBoolean("is_rated");
-                task = new Task(resultSet.getInt("task_id"),
+                task = new ProjectTask(resultSet.getInt("task_id"),
                         resultSet.getString("task_title"),
                         resultSet.getString("task_description"),
-                        creator,
                         executor,
                         priority,
                         status,
@@ -216,9 +213,6 @@ public class DatabaseManager {
                         resultSet.getDate("deadline").toLocalDate(),
                         isRated
                 );
-                if (resultSet.getDate("completed_at") != null) {
-                    task.setCompletedAt(resultSet.getTimestamp("completed_at").toLocalDateTime());
-                }
                 getTaskHistory(task);
                 getComments(task);
             }
@@ -228,7 +222,42 @@ public class DatabaseManager {
         return task;
     }
 
-    private List<TaskHistory> getTaskHistory(Task task) {
+    public List<ProjectTask> getTasksForCurrentUser() {
+        List<ProjectTask> userTasks = new ArrayList<>();
+        String userTasksQuery = "SELECT t.*, p.project_name FROM tasks t "
+                + "JOIN projects p ON t.project_id = p.project_id "
+                + "WHERE t.executor_id = ? "
+                + "ORDER BY t.deadline";
+        try (PreparedStatement statement = connection.prepareStatement(userTasksQuery)) {
+            statement.setInt(1, currentUser.getUserId());
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                String priorityStr = resultSet.getString("priority");
+                PriorityLevel priority = PriorityLevel.valueOf(priorityStr);
+                String statusStr = resultSet.getString("status");
+                Status status = Status.valueOf(statusStr);
+                boolean isRated = resultSet.getBoolean("is_rated");
+                String projectName = resultSet.getString("project_name");
+                ProjectTask task = new ProjectTask(resultSet.getInt("task_id"),
+                        resultSet.getString("task_title"),
+                        resultSet.getString("task_description"),
+                        currentUser,
+                        priority,
+                        status,
+                        resultSet.getTimestamp("created_at").toLocalDateTime(),
+                        resultSet.getDate("deadline").toLocalDate(),
+                        isRated
+                );
+                task.setProject(projectName);
+                userTasks.add(task);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return userTasks;
+    }
+
+    private List<TaskHistory> getTaskHistory(ProjectTask task) {
         List<TaskHistory> taskHistory = new ArrayList<>();
         String historyQuery = "SELECT * FROM task_history WHERE task_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(historyQuery)) {
@@ -250,7 +279,7 @@ public class DatabaseManager {
         return taskHistory;
     }
 
-    private List<Comment> getComments(Task task) {
+    private List<Comment> getComments(ProjectTask task) {
         List<Comment> taskComments = new ArrayList<>();
         String historyQuery = "SELECT * FROM comments WHERE task_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(historyQuery)) {
@@ -427,6 +456,7 @@ public class DatabaseManager {
     public boolean createTask(String name, String description, Project project, User executor, PriorityLevel priority, LocalDate deadline) {
         String insertTask = "INSERT INTO tasks (task_title, task_description, project_id, creator_id, executor_id, priority, created_at, deadline) VALUES (?,?,?,?,?,?,?,?) returning task_id";
         String insertTaskHistory = "INSERT INTO task_history (task_id, changed_by, new_status) VALUES (?,?,?)";
+        String changeProjectStatus = "UPDATE projects SET status = 'IN_PROGRESS' WHERE project_id = ? AND status = 'NEW'";
         boolean result = false;
         try {
             connection.setAutoCommit(false);
@@ -437,17 +467,19 @@ public class DatabaseManager {
                 taskStmt.setInt(4, currentUser.getUserId());
                 taskStmt.setInt(5, executor.getUserId());
                 taskStmt.setObject(6, priority.name(), java.sql.Types.OTHER);
-                taskStmt.setTimestamp(6, java.sql.Timestamp.valueOf(LocalDateTime.now()));
+                taskStmt.setTimestamp(7, java.sql.Timestamp.valueOf(LocalDateTime.now()));
                 taskStmt.setDate(8, java.sql.Date.valueOf(deadline));
 
                 try (ResultSet rs = taskStmt.executeQuery()) {
                     if (rs.next()) {
                         int newTaskId = rs.getInt(1);
-                        try (PreparedStatement historyStmt = connection.prepareStatement(insertTaskHistory)) {
+                        try (PreparedStatement historyStmt = connection.prepareStatement(insertTaskHistory); PreparedStatement projectStmt = connection.prepareStatement(changeProjectStatus)) {
                             historyStmt.setInt(1, newTaskId);
                             historyStmt.setInt(2, currentUser.getUserId());
                             historyStmt.setObject(3, Status.NEW.name(), java.sql.Types.OTHER);
                             historyStmt.executeUpdate();
+                            projectStmt.setInt(1, project.getProjectID());
+                            projectStmt.executeUpdate();
                         }
                         result = true;
                         getProjectsForCurrentUser();
@@ -486,7 +518,7 @@ public class DatabaseManager {
                 int rowsUpdated = updateTaskStmt.executeUpdate();
                 if (rowsUpdated != 1) {
                     connection.rollback();
-                    return false; // задачи с таким id нет
+                    return false;
                 }
             }
 
@@ -510,6 +542,19 @@ public class DatabaseManager {
                 connection.setAutoCommit(true);
             } catch (SQLException ignore) {
             }
+        }
+        return result;
+    }
+
+    public boolean endProject(int projectId) {
+        boolean result = false;
+        String updateProjectSql = "UPDATE projects SET status = 'DONE' WHERE project_id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(updateProjectSql)) {
+            statement.setInt(1, projectId);
+            statement.executeUpdate();
+            result = true;
+        } catch (SQLException ex) {
+            ex.printStackTrace();
         }
         return result;
     }
@@ -606,16 +651,75 @@ public class DatabaseManager {
         return newPass.toString();
     }
 
+    public void startDeadlineTimer(Connection conn) {
+        timer = new Timer(true);
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    findOverdueTasks();
+                    findOverdueProjects();
+                    notifyDeadlines();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }, 60000, 60000);
+    }
+
+    private void findOverdueTasks() {
+        String overdueTasksQuery = "UPDATE tasks SET status = 'OVERDUE'  WHERE deadline < ? AND status NOT IN ('DONE', 'OVERDUE')";
+        try (PreparedStatement statement = connection.prepareStatement(overdueTasksQuery)) {
+            statement.setDate(1, Date.valueOf(LocalDate.now()));
+            statement.executeUpdate();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void findOverdueProjects() {
+        String endedProjectQuery = "UPDATE projects SET status = 'OVERDUE'  WHERE end_date < ? AND status NOT IN ('DONE', 'OVERDUE')";
+        try (PreparedStatement statement = connection.prepareStatement(endedProjectQuery)) {
+            statement.setDate(1, Date.valueOf(LocalDate.now()));
+            statement.executeUpdate();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void notifyDeadlines() {
+        String deadlinesUpcomingQuery = "SELECT task_title, deadline FROM tasks "
+                + "WHERE deadline - ? <= 2 "
+                + "AND deadline >= ? "
+                + "AND status NOT IN ('DONE', 'OVERDUE') "
+                + "AND executor_id = ?";
+        String message = "Внимание! Приближается дедлайн следующих задач: \n";
+        try (PreparedStatement ps = connection.prepareStatement(deadlinesUpcomingQuery)) {
+            LocalDate today = LocalDate.now();
+            ps.setDate(1, Date.valueOf(today));
+            ps.setDate(2, Date.valueOf(today));
+            ps.setInt(3, currentUser.getUserId());
+
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String title = rs.getString("task_title");
+                String deadline = String.valueOf(rs.getDate("deadline"));
+                message += title + " имеет дедлайн " + deadline + "\n";
+            }
+            if (!message.equals("Внимание! Приближается дедлайн следующих задач: \n")) {
+                JOptionPane.showMessageDialog(null, message, null, JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
     public User getCurrentUser() {
         return currentUser;
     }
 
     public List<Project> getProjects() {
         return getProjectsForCurrentUser();
-    }
-
-    public List<Task> getUserTasks() {
-        return userTasks;
     }
 
 }
