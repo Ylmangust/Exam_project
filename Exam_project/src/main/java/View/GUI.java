@@ -15,9 +15,14 @@ import Model.enums.*;
 import Model.databaseEntities.*;
 import java.awt.Dimension;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.net.URISyntaxException;
 import java.time.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import mephi.b22901.exam_project.Exam_project;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -38,15 +43,21 @@ public class GUI extends javax.swing.JFrame {
     private ProjectTask currentTaskToShow;
     private String currentTasksTable = "userTasks";
     private final DefaultTableModel projectsTableModel;
+    private String dir;
 
     public GUI(Controller ctrl) {
         this.controller = ctrl;
-        projectsTableModel = new DefaultTableModel(new String[]{"Задача", "Проект", "Дедлайн"}, 0) {
+        projectsTableModel = new DefaultTableModel(new String[]{"Проект", "Статус", "Дедлайн"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
+        try {
+            dir = new File(Exam_project.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
+        } catch (URISyntaxException ex) {
+            Logger.getLogger(ExcelOperator.class.getName()).log(Level.SEVERE, null, ex);
+        }
         initComponents();
         makeVisible(authorizationDialog);
     }
@@ -149,7 +160,6 @@ public class GUI extends javax.swing.JFrame {
         newCommentScroll = new javax.swing.JScrollPane();
         newCommentArea = new javax.swing.JTextArea();
         sendCommentBtn = new javax.swing.JButton();
-        addAttachmentBtn = new javax.swing.JButton();
         setRateDialog = new javax.swing.JDialog();
         setRatePanel = new javax.swing.JPanel();
         saveRateBtn = new javax.swing.JButton();
@@ -173,7 +183,6 @@ public class GUI extends javax.swing.JFrame {
 
         authorizationDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         authorizationDialog.setTitle("Вход в систему");
-        authorizationDialog.setAlwaysOnTop(true);
         authorizationDialog.setModal(true);
         authorizationDialog.setResizable(false);
         authorizationDialog.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -377,7 +386,6 @@ public class GUI extends javax.swing.JFrame {
 
         reportsDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         reportsDialog.setTitle("Отчёты");
-        reportsDialog.setModal(true);
 
         projectsScroll.setViewportView(projectForReportList);
 
@@ -449,7 +457,6 @@ public class GUI extends javax.swing.JFrame {
 
         tasksDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         tasksDialog.setTitle("Задачи");
-        tasksDialog.setModal(true);
         tasksDialog.setResizable(false);
 
         statusFilterCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Все", "Новые", "В работе", "Завершенные", "Просроченные" }));
@@ -675,7 +682,6 @@ public class GUI extends javax.swing.JFrame {
         );
 
         ganttDiagramDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        ganttDiagramDialog.setModal(true);
         ganttDiagramDialog.setResizable(false);
 
         javax.swing.GroupLayout diagramPanelLayout = new javax.swing.GroupLayout(diagramPanel);
@@ -705,7 +711,7 @@ public class GUI extends javax.swing.JFrame {
         );
 
         executorsStatistics.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        executorsStatistics.setModal(true);
+        executorsStatistics.setTitle("Стастистика по участникам");
 
         statisticsTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -747,7 +753,6 @@ public class GUI extends javax.swing.JFrame {
 
         newUserDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         newUserDialog.setTitle("Регистрация нового пользователя");
-        newUserDialog.setModal(true);
 
         fullNameLbl.setText("Полное имя:");
 
@@ -940,8 +945,6 @@ public class GUI extends javax.swing.JFrame {
             }
         });
 
-        addAttachmentBtn.setText("Добавить вложение");
-
         javax.swing.GroupLayout taskCommentPanelLayout = new javax.swing.GroupLayout(taskCommentPanel);
         taskCommentPanel.setLayout(taskCommentPanelLayout);
         taskCommentPanelLayout.setHorizontalGroup(
@@ -958,9 +961,7 @@ public class GUI extends javax.swing.JFrame {
                             .addGroup(taskCommentPanelLayout.createSequentialGroup()
                                 .addComponent(newCommentScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 267, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(taskCommentPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(addAttachmentBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(sendCommentBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))))
+                                .addComponent(sendCommentBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 143, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                 .addContainerGap(26, Short.MAX_VALUE))
         );
         taskCommentPanelLayout.setVerticalGroup(
@@ -970,13 +971,13 @@ public class GUI extends javax.swing.JFrame {
                 .addComponent(taskCommLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(commentsScroll, javax.swing.GroupLayout.DEFAULT_SIZE, 383, Short.MAX_VALUE)
-                .addGap(18, 18, 18)
-                .addGroup(taskCommentPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                .addGroup(taskCommentPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(taskCommentPanelLayout.createSequentialGroup()
-                        .addComponent(sendCommentBtn)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(addAttachmentBtn))
-                    .addComponent(newCommentScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 64, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(18, 18, 18)
+                        .addComponent(newCommentScroll, javax.swing.GroupLayout.PREFERRED_SIZE, 64, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(taskCommentPanelLayout.createSequentialGroup()
+                        .addGap(27, 27, 27)
+                        .addComponent(sendCommentBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(17, 17, 17))
         );
 
@@ -1061,7 +1062,7 @@ public class GUI extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        tableNameLbl.setText("Активные проекты");
+        tableNameLbl.setText("Проекты");
 
         javax.swing.GroupLayout lblPanelLayout = new javax.swing.GroupLayout(lblPanel);
         lblPanel.setLayout(lblPanelLayout);
@@ -1270,10 +1271,10 @@ public class GUI extends javax.swing.JFrame {
                     }
                 }
             } catch (DateTimeParseException ex) {
-                JOptionPane.showMessageDialog(this, "Дата не соотвествует формату ГГГГ-ММ-ДД", null, JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(null, "Дата не соотвествует формату ГГГГ-ММ-ДД", null, JOptionPane.WARNING_MESSAGE);
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Необходимо заполнить все поля!", null, JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Необходимо заполнить все поля!", null, JOptionPane.WARNING_MESSAGE);
         }
     }//GEN-LAST:event_createNewTaskBtnActionPerformed
 
@@ -1488,7 +1489,7 @@ public class GUI extends javax.swing.JFrame {
     private void exportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exportBtnActionPerformed
         Project selectedProject = projectForReportList.getSelectedValue();;
         if (selectedProject != null) {
-            JFileChooser fileChooser = new JFileChooser();
+            JFileChooser fileChooser = new JFileChooser(dir);
             FileNameExtensionFilter filter = new FileNameExtensionFilter("Excel file(*.xlsx)", "xlsx");
             fileChooser.setFileFilter(filter);
             String path = null;
@@ -1606,6 +1607,8 @@ public class GUI extends javax.swing.JFrame {
                 && currentTaskToShow.getStatus() == Status.DONE
                 && !currentTaskToShow.getIsRated());
 
+        
+        taskInfoLbl.setText("Описание задачи " + currentTaskToShow.getName());
         StringBuilder sb = new StringBuilder();
         List<Comment> comments = currentTaskToShow.getComments();
         for (Comment comment : comments) {
@@ -1739,6 +1742,9 @@ public class GUI extends javax.swing.JFrame {
     }
 
     private void drawGanttDiagramm(Project project) {
+        diagramPanel.removeAll();
+        diagramPanel.revalidate();
+        diagramPanel.repaint();
         TaskSeries projectToShow = new TaskSeries(project.getProjectName());
         List<ProjectTask> tasks = controller.getTasksForProject(project);
         for (ProjectTask task : tasks) {
@@ -1764,7 +1770,6 @@ public class GUI extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTable activeProjectsTable;
-    private javax.swing.JButton addAttachmentBtn;
     private javax.swing.JButton applyFiltersBtn;
     private javax.swing.JDialog authorizationDialog;
     private javax.swing.JPanel authorizationPanel;

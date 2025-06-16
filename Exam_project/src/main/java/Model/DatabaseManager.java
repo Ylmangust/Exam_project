@@ -84,6 +84,9 @@ public class DatabaseManager {
                 getProjectsForCurrentUser();
                 startDeadlineTimer(connection);
             }
+            if (currentUser.getRole() == Role.ADMIN){
+                readUsers();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -111,6 +114,9 @@ public class DatabaseManager {
                 Role role = Role.valueOf(roleStr);
                 int rate = resultSet.getInt("rate");
                 users.add(new User(id, username, pass, name, role, rate));
+            }
+            if (currentUser.getRole() == Role.ADMIN){
+                ExcelOperator.exportUsers(users);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -180,9 +186,9 @@ public class DatabaseManager {
                         resultSet.getDate("deadline").toLocalDate(),
                         isRated
                 );
-                project.setTasks(tasks);
                 tasks.add(task);
             }
+            project.setTasks(tasks);
         } catch (SQLException ex) {
             Logger.getLogger(DatabaseManager.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -571,6 +577,7 @@ public class DatabaseManager {
             statement.setObject(4, role.name(), java.sql.Types.OTHER);
             statement.executeUpdate();
             result = true;
+            readUsers();
         } catch (SQLException ex) {
             if ("23505".equals(ex.getSQLState())) {
                 return false;
