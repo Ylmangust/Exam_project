@@ -5,7 +5,6 @@
 package Model.databaseEntities;
 
 import Model.enums.Status;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**

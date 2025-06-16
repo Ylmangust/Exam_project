@@ -4,10 +4,7 @@
  */
 package Model.databaseEntities;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  *
@@ -17,7 +14,6 @@ public class Comment {
     private User creator;
     private String message;
     private LocalDateTime createdAt;
-    private List <Attachment> attachments = new ArrayList<>();
 
     public Comment(User creator, String message, LocalDateTime createdAt) {
         this.creator = creator;
@@ -37,10 +33,6 @@ public class Comment {
         return createdAt;
     }
 
-    public List<Attachment> getAttachments() {
-        return attachments;
-    }
-    
     
     
 }

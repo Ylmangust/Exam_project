@@ -4,7 +4,6 @@
  */
 package Model;
 
-import Model.databaseEntities.Project;
 import Model.databaseEntities.ProjectTask;
 import Model.databaseEntities.User;
 import Model.enums.Status;

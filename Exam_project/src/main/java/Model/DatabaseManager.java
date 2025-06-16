@@ -455,7 +455,7 @@ public class DatabaseManager {
 
     public boolean createTask(String name, String description, Project project, User executor, PriorityLevel priority, LocalDate deadline) {
         String insertTask = "INSERT INTO tasks (task_title, task_description, project_id, creator_id, executor_id, priority, created_at, deadline) VALUES (?,?,?,?,?,?,?,?) returning task_id";
-        String insertTaskHistory = "INSERT INTO task_history (task_id, changed_by, new_status) VALUES (?,?,?)";
+        String insertTaskHistory = "INSERT INTO task_history (task_id, changed_by, new_status, changed_at) VALUES (?,?,?,?)";
         String changeProjectStatus = "UPDATE projects SET status = 'IN_PROGRESS' WHERE project_id = ? AND status = 'NEW'";
         boolean result = false;
         try {
@@ -477,6 +477,7 @@ public class DatabaseManager {
                             historyStmt.setInt(1, newTaskId);
                             historyStmt.setInt(2, currentUser.getUserId());
                             historyStmt.setObject(3, Status.NEW.name(), java.sql.Types.OTHER);
+                            taskStmt.setTimestamp(4, java.sql.Timestamp.valueOf(LocalDateTime.now()));
                             historyStmt.executeUpdate();
                             projectStmt.setInt(1, project.getProjectID());
                             projectStmt.executeUpdate();
@@ -651,7 +652,7 @@ public class DatabaseManager {
         return newPass.toString();
     }
 
-    public void startDeadlineTimer(Connection conn) {
+    private void startDeadlineTimer(Connection conn) {
         timer = new Timer(true);
         timer.schedule(new TimerTask() {
             @Override
