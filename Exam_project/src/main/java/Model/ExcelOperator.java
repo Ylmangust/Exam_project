@@ -9,13 +9,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JOptionPane;
-import mephi.b22901.exam_project.Exam_project;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
@@ -80,7 +76,7 @@ public class ExcelOperator {
         }
     }
 
-    public static void exportUsers(List<User> users) {
+    public static void exportUsers(List<User> users, String pathToSave) {
         String[] colNames = {"Имя пользователя", "Логин", "Пароль", "Роль"};
         int columns = colNames.length;
 
@@ -113,17 +109,14 @@ public class ExcelOperator {
         }
 
         try {
-            String dir = new File(Exam_project.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
-            String pathToSave = dir + File.separator + "Информация о пользователях.xlsx";
             FileOutputStream out = new FileOutputStream(new File(pathToSave));
+            JOptionPane.showMessageDialog(null, "Пользователи успешно экспортированы!\nРасположение:  " + pathToSave, null, JOptionPane.INFORMATION_MESSAGE);
             workbook.write(out);
             workbook.close();
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (URISyntaxException ex) {
-            Logger.getLogger(ExcelOperator.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }

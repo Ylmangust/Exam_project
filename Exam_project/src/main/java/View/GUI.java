@@ -180,6 +180,7 @@ public class GUI extends javax.swing.JFrame {
         createNewTaskItem = new javax.swing.JMenuItem();
         reportsItem = new javax.swing.JMenuItem();
         newUserItem = new javax.swing.JMenuItem();
+        exportUsers = new javax.swing.JMenuItem();
 
         authorizationDialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         authorizationDialog.setTitle("Вход в систему");
@@ -1166,6 +1167,14 @@ public class GUI extends javax.swing.JFrame {
         });
         extendedAccessOptions.add(newUserItem);
 
+        exportUsers.setText("Выгрузить пользователей");
+        exportUsers.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                exportUsersActionPerformed(evt);
+            }
+        });
+        extendedAccessOptions.add(exportUsers);
+
         mainMenuBar.add(extendedAccessOptions);
 
         setJMenuBar(mainMenuBar);
@@ -1538,6 +1547,23 @@ public class GUI extends javax.swing.JFrame {
         updateTasksTable(filtered);
     }//GEN-LAST:event_applyFiltersBtnActionPerformed
 
+    private void exportUsersActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exportUsersActionPerformed
+        JFileChooser fileChooser = new JFileChooser(dir);
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Excel file(*.xlsx)", "xlsx");
+        fileChooser.setFileFilter(filter);
+        String path = null;
+        int ret = fileChooser.showSaveDialog(null);
+        if (ret == JFileChooser.APPROVE_OPTION) {
+            path = fileChooser.getSelectedFile().getAbsolutePath();
+        }
+        if (path != null) {
+            List <User> users = controller.getAllUsers();
+            ExcelOperator.exportUsers(users, path);
+        }
+    }//GEN-LAST:event_exportUsersActionPerformed
+
+    
+
     private boolean allTasksCompleted(Project project) {
         List<ProjectTask> tasks = project.getTasks();
         boolean allCompleted = true;
@@ -1607,7 +1633,6 @@ public class GUI extends javax.swing.JFrame {
                 && currentTaskToShow.getStatus() == Status.DONE
                 && !currentTaskToShow.getIsRated());
 
-        
         taskInfoLbl.setText("Описание задачи " + currentTaskToShow.getName());
         StringBuilder sb = new StringBuilder();
         List<Comment> comments = currentTaskToShow.getComments();
@@ -1721,6 +1746,7 @@ public class GUI extends javax.swing.JFrame {
     private void setUpUserAccess(Role role) {
         extendedAccessOptions.setEnabled(role != Role.EXECUTOR);
         newUserItem.setEnabled(role == Role.ADMIN);
+        exportUsers.setEnabled(role == Role.ADMIN);
         endProjectBtn.setEnabled(role != Role.EXECUTOR);
     }
 
@@ -1796,6 +1822,7 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JTable executorsTable;
     private javax.swing.JMenuItem exitMenuItem;
     private javax.swing.JButton exportBtn;
+    private javax.swing.JMenuItem exportUsers;
     private javax.swing.JMenu extendedAccessOptions;
     private javax.swing.JPanel filterPanel;
     private javax.swing.JTextField fullNameField;

@@ -49,14 +49,11 @@ public class DatabaseManager {
     public DatabaseManager() {
         try {
             connection = DriverManager.getConnection(url, user, password);
-            if (connection == null) {
-                connection.close();
-                System.exit(0);
-            }
         } catch (SQLException e) {
-            System.out.println("Connection error: " + e.getMessage());
             try {
-                connection.close();
+                if (connection != null) {
+                    connection.close();
+                }
             } catch (SQLException ex) {
             }
             System.exit(0);
@@ -83,9 +80,6 @@ public class DatabaseManager {
                 currentUser = new User(id, username, password, name, role, rate);
                 getProjectsForCurrentUser();
                 startDeadlineTimer(connection);
-            }
-            if (currentUser.getRole() == Role.ADMIN){
-                readUsers();
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -114,9 +108,6 @@ public class DatabaseManager {
                 Role role = Role.valueOf(roleStr);
                 int rate = resultSet.getInt("rate");
                 users.add(new User(id, username, pass, name, role, rate));
-            }
-            if (currentUser.getRole() == Role.ADMIN){
-                ExcelOperator.exportUsers(users);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -577,7 +568,6 @@ public class DatabaseManager {
             statement.setObject(4, role.name(), java.sql.Types.OTHER);
             statement.executeUpdate();
             result = true;
-            readUsers();
         } catch (SQLException ex) {
             if ("23505".equals(ex.getSQLState())) {
                 return false;
