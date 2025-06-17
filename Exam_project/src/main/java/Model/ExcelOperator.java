@@ -77,6 +77,10 @@ public class ExcelOperator {
     }
 
     public static void exportUsers(List<User> users, String pathToSave) {
+        if (!pathToSave.endsWith(".xlsx")) {
+            pathToSave = pathToSave + ".xlsx";
+        }
+        
         String[] colNames = {"Имя пользователя", "Логин", "Пароль", "Роль"};
         int columns = colNames.length;
 
